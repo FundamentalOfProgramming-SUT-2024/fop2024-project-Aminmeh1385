@@ -12,7 +12,9 @@
 #define HEIGHT 40
 #define MAX_ROOMS 9
 #define VISION_RADIUS 5
+#define MAX_REGENERATIONS 4 // حداکثر تعداد بازسازی نقشه
 
+int regenerations = 0; // شمارنده بازسازی‌ها
 // User structure
 typedef struct {
     char username[USERNAME_LENGTH];
@@ -111,7 +113,6 @@ int isUsernameUnique(const char *username) {
     return 1; // Username is unique
 }
 
-// 1. Create new user menu
 void createUser() {
     if (userCount >= MAX_USERS) {
         printw("Maximum number of users reached.\n");
@@ -120,7 +121,10 @@ void createUser() {
 
     User newUser;
     printw("Enter username: ");
+    move(LINES - 1, 16);
+    echo();
     scanw("%s", newUser.username);
+    noecho();
 
     if (!isUsernameUnique(newUser.username)) {
         printw("Username already taken. Please choose another one.\n");
@@ -128,7 +132,10 @@ void createUser() {
     }
 
     printw("Enter password: ");
+    move(LINES - 1, 15);
+    echo();
     scanw("%s", newUser.password);
+    noecho();
 
     if (strlen(newUser.password) < 7) {
         printw("Password must be at least 7 characters long.\n");
@@ -136,7 +143,10 @@ void createUser() {
     }
 
     printw("Enter email: ");
+    move(LINES - 1, 13);
+    echo();
     scanw("%s", newUser.email);
+    noecho();
 
     if (!isEmailValid(newUser.email)) {
         printw("Invalid email address. Please try again.\n");
@@ -154,7 +164,7 @@ void createUser() {
     } else {
         printw("Error saving user data.\n");
     }
-} 
+}
 
 void generatePasswordForUser() {
     char username[USERNAME_LENGTH];
@@ -269,16 +279,16 @@ void place_window_in_room(Room *room) {
 int is_valid_for_corridor(int x, int y) {
     return map[y][x] == '.' || map[y][x] == '+' || map[y][x] == '#';
 }
-void connect_rooms(Room r1, Room r2) {
-    int x1 = r1.door_x;
-    int y1 = r1.door_y;
-    int x2 = r2.door_x;
-    int y2 = r2.door_y;
+void connect_rooms(Room* r1, Room* r2) {
+    int x1 = r1->door_x;
+    int y1 = r1->door_y;
+    int x2 = r2->door_x;
+    int y2 = r2->door_y;
 
-    int mid_x1 = r1.x + r1.width / 2;
-    int mid_y1 = r1.y + r1.height / 2;
-    int mid_x2 = r2.x + r2.width / 2;
-    int mid_y2 = r2.y + r2.height / 2;
+    int mid_x1 = r1->x + r1->width / 2;
+    int mid_y1 = r1->y + r1->height / 2;
+    int mid_x2 = r2->x + r2->width / 2;
+    int mid_y2 = r2->y + r2->height / 2;
 
     // Create a horizontal corridor from the center of r1 to the center of r2
     while (x1 != mid_x1 || y1 != mid_y1) {
@@ -314,14 +324,14 @@ void connect_rooms(Room r1, Room r2) {
     }
 
     // Create a vertical corridor from x2 to y2
-    while (x2 != r2.door_x || y2 != r2.door_y) {
+    while (x2 != r2->door_x || y2 != r2->door_y) {
         if (map[y2][x2] == '_' || map[y2][x2] == '|') {
             map[y2][x2] = '+'; // Place a door if a wall is encountered
         } else if (map[y2][x2] == ' ') {
             map[y2][x2] = '#'; // Create a corridor if the tile is empty
         }
-        if (x2 != r2.door_x) x2 += (r2.door_x > x2) ? 1 : -1;
-        if (y2 != r2.door_y) y2 += (r2.door_y > y2) ? 1 : -1;
+        if (x2 != r2->door_x) x2 += (r2->door_x > x2) ? 1 : -1;
+        if (y2 != r2->door_y) y2 += (r2->door_y > y2) ? 1 : -1;
     }
 }
 
@@ -405,6 +415,7 @@ void add_traps_to_room(Room *room) {
     }
 }
 
+
 void place_single_special_characters(Room *rooms, int room_count) {
     // Place ">"
     int room_index_for_greater = rand() % room_count;
@@ -435,7 +446,7 @@ void regenerate_map() {
         if (create_room(&new_room)) {
             add_columns_to_room(&new_room);
             if (room_count > 0)
-                connect_rooms(rooms[room_count - 1], new_room);
+                connect_rooms(&rooms[room_count - 1], &new_room); // استفاده از آدرس اتاق‌ها
             rooms[room_count++] = new_room;
         }
     }
@@ -443,7 +454,7 @@ void regenerate_map() {
     // Add windows and traps to rooms
     for (int i = 0; i < room_count; i++) {
         place_window_in_room(&rooms[i]);
-        add_traps_to_room(&rooms[i]);
+        add_traps_to_room(&rooms[i]); // اضافه کردن تله‌ها به اتاق‌ها
     }
 
     // Place special characters ">" and "<"
@@ -456,6 +467,10 @@ void regenerate_map() {
     map[player_y][player_x] = '@';
 
     update_seen_tiles(); // Initialize seen tiles
+
+    clear(); // Clear the screen for the new map
+    print_map(); // Print the new map
+    refresh(); // Refresh to show the updated screen
 }
 
 void move_player(char input) {
@@ -481,18 +496,46 @@ void move_player(char input) {
         player_y = new_y;
         map[player_y][player_x] = '@';
         update_seen_tiles();
+        
+        // Clear the line before printing a new message
+        mvprintw(0, 0, "                                           ");
+
+        // Check for traps
+        if (trap_map[player_y][player_x] == 'T') {
+            player_hp -= 1; // کاهش HP
+            mvprintw(0, 0, "You stepped on a trap! Your HP is now %d.", player_hp);
+        }
+
+        // Check for stairs and regenerate map if needed
+        if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
+            regenerations++;
+            regenerate_map();
+            mvprintw(0, 0, "Map regenerated! You are now on floor %d.", regenerations + 1);
+        } else if (regenerations >= MAX_REGENERATIONS) {
+            mvprintw(0, 0, "Maximum map regenerations reached.");
+        }
+
     } else {
-        printw("You cannot move there! That path is blocked.\n");
+        mvprintw(0, 0, "You cannot move there! That path is blocked.");
     }
-    }
-    void loginUser() {
+    refresh(); // Refresh to show the message
+}
+
+   void loginUser() {
     char username[USERNAME_LENGTH];
     char password[PASSWORD_LENGTH];
 
     printw("Enter username: ");
+    move(LINES - 1, 15);
+    echo();
     scanw("%s", username);
+    noecho();
+
     printw("Enter password: ");
+    move(LINES - 1, 16);
+    echo();
     scanw("%s", password);
+    noecho();
 
     for (int i = 0; i < userCount; i++) {
         if (strcmp(users[i].username, username) == 0 && strcmp(users[i].password, password) == 0) {
@@ -516,14 +559,14 @@ void move_player(char input) {
                 srand(time(NULL));
                 initialize_map();
                 initialize_trap_map();
-               int room_count = 0;
+                int room_count = 0;
 
                 while (room_count < MAX_ROOMS) {
                     Room new_room;
                     if (create_room(&new_room)) {
                         add_columns_to_room(&new_room);
                         if (room_count > 0)
-                            connect_rooms(rooms[room_count - 1], new_room);
+                            connect_rooms(&rooms[room_count - 1], &new_room);
                         rooms[room_count++] = new_room;
                     }
                 }
@@ -543,13 +586,16 @@ void move_player(char input) {
                 update_seen_tiles();
             }
 
+            timeout(100); // Set a timeout for getch to make the game responsive
+
             char input;
             while (1) {
                 print_map();
-                printw("Use W/A/S/D to move horizental and vertical\n");
-                printw("Use Q/E/Z/C to move diagonal\nPress G to quit.\n");
+                printw("Use W/A/S/D to move horizontally and vertically\n");
+                printw("Use Q/E/Z/C to move diagonally\nPress G to quit.\n");
                 printw("Press P to save game.\n");
-                scanw(" %c", &input);
+                refresh();
+                input = getch();
                 if (tolower(input) == 'g') break;
                 if (tolower(input) == 'p') {
                     game_state.player_x = player_x;
@@ -561,7 +607,10 @@ void move_player(char input) {
                     game_state.room_count = room_count;
 
                     printw("Enter a name for your save file (e.g., save1, save2, ...): ");
+                    move(LINES - 1, 0);
+                    echo();
                     scanw("%s", filename);
+                    noecho();
                     save_game(filename, &game_state);
                 }
                 move_player(input);
@@ -571,12 +620,15 @@ void move_player(char input) {
                 }
             }
 
+            timeout(-1); // Reset timeout to blocking mode
+
             return;
         }
     }
 
     printw("Invalid username or password.\n");
 }
+
 
 void resetPassword() {
     char email[EMAIL_LENGTH];
@@ -633,6 +685,9 @@ void loadUsers() {
 }
 
 int main() {
+    initscr(); // Initialize the ncurses screen
+    noecho();  // Disable echoing of input characters
+    cbreak();  // Disable line buffering
     srand(time(NULL)); // Initialize random seed for password generation
 
     // Load users from file when the program starts
@@ -640,6 +695,7 @@ int main() {
 
     int choice;
     do {
+        clear(); // Clear the screen
         printw("\nMenu:\n");
         printw("1. Create new user\n");
         printw("2. Generate random password\n");
@@ -648,7 +704,11 @@ int main() {
         printw("5. Recover forgotten password\n");
         printw("6. Exit\n");
         printw("Enter your choice: ");
-        scanw("%d", &choice);
+        refresh(); // Refresh to show the menu
+
+        // Move the cursor to the next line for user input
+        move(LINES - 1, 0);
+        choice = getch() - '0'; // Read the user's choice without requiring Enter
 
         switch (choice) {
             case 1:
@@ -671,9 +731,10 @@ int main() {
                 break;
             default:
                 printw("Invalid choice.\n");
+                getch(); // Wait for user to press a key
         }
     } while (choice != 6);
 
+    endwin(); // End the ncurses mode
     return 0;
 }
-
