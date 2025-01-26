@@ -19,6 +19,8 @@
 #define TOTAL_BLACK_GOLD 3 // تعداد کل طلای سیاه
 #define MAX_INVENTORY_ITEMS 100
 #define ITEM_NAME_LENGTH 50
+#define TOTAL_FOOD 10 // تعداد کل غذای معمولی
+int placed_food = 0; // شمارش غذای قرار داده شده
 
 typedef struct {
     char name[ITEM_NAME_LENGTH];
@@ -84,6 +86,18 @@ typedef struct {
     Room rooms[MAX_ROOMS];
     int room_count;
 } GameState;
+void add_food_to_room(Room *room) {
+    for (int i = 0; i < 1; i++) { // Add 1 food per room
+        int food_x, food_y;
+        do {
+            food_x = room->x + 1 + rand() % (room->width - 2);
+            food_y = room->y + 1 + rand() % (room->height - 2);
+        } while (map[food_y][food_x] == 'F'); // Ensure we don't place food on another food
+
+        map[food_y][food_x] = 'f'; // Place food in the map, استفاده از 'F' به جای 🍎
+        placed_food++;
+    }
+}
 
 void save_game(const char* filename, GameState* game_state) {
     FILE *file = fopen(filename, "wb");
@@ -380,49 +394,48 @@ void print_map() {
 
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
-            // Print the message on the top row (optional for messages)
             if (i == 0 && show_message) {
                 if (j < (int)strlen(hit_message)) {
-                    printw("%c", hit_message[j]); // Print the message character
+                    printw("%c", hit_message[j]);
                 } else {
-                    printw(" "); // Fill the rest of the row with spaces
+                    printw(" ");
                 }
             } else if (map[i][j] == '&') {
-                attron(COLOR_PAIR(1)); // Activate yellow color
-                printw("%c", map[i][j]); // Print the gold bag character
-                attroff(COLOR_PAIR(1)); // Deactivate yellow color
+                attron(COLOR_PAIR(1));
+                printw("%c", map[i][j]);
+                attroff(COLOR_PAIR(1));
             } else if (map[i][j] == 'B') {
-                attron(COLOR_PAIR(3)); // Activate black color
-                printw("%c", map[i][j]); // Print the black gold character
-                attroff(COLOR_PAIR(3)); // Deactivate black color
+                attron(COLOR_PAIR(3));
+                printw("%c", map[i][j]);
+                attroff(COLOR_PAIR(3));
+            } else if (map[i][j] == 'f') {
+                attron(COLOR_PAIR(2));
+                printw("%c", map[i][j]);
+                attroff(COLOR_PAIR(2));
             } else if (seen_map[i][j] != ' ') {
-                printw("%c", seen_map[i][j]); // Print the map content
+                printw("%c", seen_map[i][j]);
             } else {
                 printw(" ");
             }
         }
 
-        // If it's the last row (bottom row), display stats within the game field
         if (i == HEIGHT - 1) {
-            // Format and display the player stats
             printw("Lvl: %d  Gold: %d  HP: %d  Str: %d  Arm: %d  Exp: %d", 
                    player_level, player_gold, player_hp, player_str, player_arm, player_exp);
-            
-            // Ensure we do not overflow the width (pad remaining space with spaces)
-            int remaining_space = WIDTH - 56;  // 56 is the length of the stats string
+
+            int remaining_space = WIDTH - 56;
             for (int k = 0; k < remaining_space; k++) {
-                printw(" "); // Fill the rest of the line with spaces
+                printw(" ");
             }
         }
 
-        // Add a newline after each row
         printw("\n");
     }
 
     // چاپ پیام فعلی
     mvprintw(HEIGHT, 0, "%s", current_message);
 
-    refresh(); // Refresh the screen to display changes
+    refresh(); // Refresh to show the message
 }
 
 
@@ -521,11 +534,20 @@ void show_inventory() {
     while ((ch = getch()) != 'i') {
         ch -= '0';
         if (ch >= 1 && ch <= inventory_count) {
-            // Here you can implement the logic to use the item
-            printw("You used %s.\n", inventory[ch - 1].name);
-            refresh();
-            getch(); // Wait for the user to press a key to acknowledge using the item
-            break;
+            // بررسی اینکه آیا آیتم غذای معمولی است و استفاده از آن برای افزایش HP
+            if (strcmp(inventory[ch - 1].name, "Food") == 0) {
+                player_hp += 5;
+                snprintf(current_message, sizeof(current_message), "You used food! Your HP is now %d.", player_hp);
+                // حذف غذا از inventory پس از استفاده
+                for (int j = ch - 1; j < inventory_count - 1; j++) {
+                    inventory[j] = inventory[j + 1];
+                }
+                inventory_count--;
+            } else {
+                printw("You used %s.\n", inventory[ch - 1].name);
+                refresh();
+                getch(); // Wait for the user to press a key to acknowledge using the item
+            }
         }
     }
     clear();
@@ -545,8 +567,7 @@ void regenerate_map() {
 
     int room_count = 0;
     int gold_count = 0; // شمارش طلای معمولی
-    int gold_bag_count = 0; // شمارش کیسه‌های طلای
-    int black_gold_count = 0; // شمارش طلای سیاه
+    int food_count = 0; // شمارش غذای معمولی
 
     // Generate rooms
     while (room_count < MAX_ROOMS) {
@@ -559,7 +580,7 @@ void regenerate_map() {
         }
     }
 
-    // Add windows, traps, gold, gold bags, and black gold to rooms
+    // Add windows, traps, gold, and food to rooms
     for (int i = 0; i < room_count; i++) {
         place_window_in_room(&rooms[i]);
         add_traps_to_room(&rooms[i]); // اضافه کردن تله‌ها به اتاق‌ها
@@ -568,15 +589,10 @@ void regenerate_map() {
             add_gold_to_room(&rooms[i]); // اضافه کردن طلا به اتاق‌ها
             gold_count++;
         }
-        // Add gold bags to rooms
-        if (gold_bag_count < TOTAL_GOLD_BAGS) {
-            add_gold_bag_to_room(&rooms[i]); // اضافه کردن کیسه‌های طلای به اتاق‌ها
-            gold_bag_count++;
-        }
-        // Add black gold to rooms
-        if (black_gold_count < TOTAL_BLACK_GOLD) {
-            add_black_gold_to_room(&rooms[i]); // اضافه کردن طلای سیاه به اتاق‌ها
-            black_gold_count++;
+        // Add food to rooms
+        if (food_count < TOTAL_FOOD) {
+            add_food_to_room(&rooms[i]); // اضافه کردن غذا به اتاق‌ها
+            food_count++;
         }
     }
 
@@ -595,6 +611,7 @@ void regenerate_map() {
     print_map(); // Print the new map
     refresh(); // Refresh to show the updated screen
 }
+
 
 void move_player(char input) {
     if (tolower(input) == 'i') {
@@ -632,7 +649,7 @@ void move_player(char input) {
     }
 
     char destination_tile = map[new_y][new_x];
-    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'w' || destination_tile == 't') {
+    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f') {
         map[player_y][player_x] = '.';
         player_x = new_x;
         player_y = new_y;
@@ -671,18 +688,6 @@ void move_player(char input) {
         else if (destination_tile == 'f') {
             add_to_inventory("Food", "Consumable");
             snprintf(current_message, sizeof(current_message), "You picked up food!");
-        }
-
-        // Check for weapon
-        else if (destination_tile == 'w') {
-            add_to_inventory("Weapon", "Weapon");
-            snprintf(current_message, sizeof(current_message), "You picked up a weapon!");
-        }
-
-        // Check for talisman
-        else if (destination_tile == 't') {
-            add_to_inventory("Talisman", "Magic");
-            snprintf(current_message, sizeof(current_message), "You picked up a talisman!");
         }
 
         // Check for stairs and regenerate map if needed
