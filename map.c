@@ -20,6 +20,9 @@
 #define MAX_INVENTORY_ITEMS 100
 #define ITEM_NAME_LENGTH 50
 #define TOTAL_FOOD 10 // تعداد کل غذای معمولی
+#define TOTAL_SUPER_FOOD 6 // تعداد کل غذای اعلا
+int placed_super_food = 0; // شمارش غذای اعلا قرار داده شده
+
 int placed_food = 0; // شمارش غذای قرار داده شده
 
 typedef struct {
@@ -96,6 +99,18 @@ void add_food_to_room(Room *room) {
 
         map[food_y][food_x] = 'f'; // Place food in the map, استفاده از 'F' به جای 🍎
         placed_food++;
+    }
+}
+void add_super_food_to_room(Room *room) {
+    for (int i = 0; i < 1; i++) { // Add 1 super food per room
+        int super_food_x, super_food_y;
+        do {
+            super_food_x = room->x + 1 + rand() % (room->width - 2);
+            super_food_y = room->y + 1 + rand() % (room->height - 2);
+        } while (map[super_food_y][super_food_x] == 'j'); // Ensure we don't place super food on another super food
+
+        map[super_food_y][super_food_x] = 'j'; // Place super food in the map
+        placed_super_food++;
     }
 }
 
@@ -522,6 +537,7 @@ void add_to_inventory(const char* item_name, const char* item_type) {
         printw("Inventory is full. Cannot add more items.\n");
     }
 }
+
 void show_inventory() {
     clear();
     printw("Inventory:\n");
@@ -544,6 +560,15 @@ void show_inventory() {
                     inventory[j] = inventory[j + 1];
                 }
                 inventory_count--;
+            } else if (strcmp(inventory[ch - 1].name, "Super Food") == 0) {
+                player_hp += 8; // افزایش HP
+                player_str += 6; // افزایش Strength
+                snprintf(current_message, sizeof(current_message), "You used super food! Your HP is now %d, and your strength is now %d.", player_hp, player_str);
+                // حذف غذای اعلا از inventory پس از استفاده
+                for (int j = ch - 1; j < inventory_count - 1; j++) {
+                    inventory[j] = inventory[j + 1];
+                }
+                inventory_count--;
             } else {
                 printw("You used %s.\n", inventory[ch - 1].name);
                 refresh();
@@ -555,12 +580,6 @@ void show_inventory() {
     inventory_open = 0; // بستن inventory
 }
 
-void clear_message() {
-    move(HEIGHT, 0);
-    clrtoeol(); // Clear the entire line
-    refresh(); // Refresh to show the cleared line
-}
-
 
 void regenerate_map() {
     // Initialize map
@@ -569,6 +588,7 @@ void regenerate_map() {
     int room_count = 0;
     int gold_count = 0; // شمارش طلای معمولی
     int food_count = 0; // شمارش غذای معمولی
+    int super_food_count = 0; // شمارش غذای اعلا
     placed_gold_bags = 0; // شمارش کیسه‌های طلای قرار داده شده
     placed_black_gold = 0; // شمارش طلای سیاه قرار داده شده
 
@@ -583,7 +603,7 @@ void regenerate_map() {
         }
     }
 
-    // Add windows, traps, gold, food, gold bags, and black gold to rooms
+    // Add windows, traps, gold, food, gold bags, black gold, and super food to rooms
     for (int i = 0; i < room_count; i++) {
         place_window_in_room(&rooms[i]);
         add_traps_to_room(&rooms[i]); // اضافه کردن تله‌ها به اتاق‌ها
@@ -598,6 +618,12 @@ void regenerate_map() {
         if (food_count < TOTAL_FOOD) {
             add_food_to_room(&rooms[i]); // اضافه کردن غذا به اتاق‌ها
             food_count++;
+        }
+
+        // Add super food to rooms
+        if (super_food_count < TOTAL_SUPER_FOOD) {
+            add_super_food_to_room(&rooms[i]); // اضافه کردن غذای اعلا به اتاق‌ها
+            super_food_count++;
         }
 
         // Add gold bags to rooms
@@ -629,6 +655,7 @@ void regenerate_map() {
     refresh(); // Refresh to show the updated screen
 }
 
+
 void move_player(char input) {
     if (tolower(input) == 'i') {
         if (inventory_open) {
@@ -647,10 +674,10 @@ void move_player(char input) {
     }
 
     int new_x = player_x;
-    int new_y = player_y;
+    int new_y = player_y; // مقداردهی به new_y
 
     // پاک کردن پیام قبلی
-    clear_message(); 
+   // clear_message(); 
 
     switch (tolower(input)) {
         case 'w': new_y--; break;
@@ -664,8 +691,16 @@ void move_player(char input) {
         default: return;
     }
 
+    // بررسی محدوده آرایه‌ها
+    if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
+        snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
+        mvprintw(HEIGHT, 0, "%s", current_message);
+        refresh();
+        return;
+    }
+
     char destination_tile = map[new_y][new_x];
-    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f') {
+    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j') {
         map[player_y][player_x] = '.';
         player_x = new_x;
         player_y = new_y;
@@ -704,6 +739,12 @@ void move_player(char input) {
         else if (destination_tile == 'f') {
             add_to_inventory("Food", "Consumable");
             snprintf(current_message, sizeof(current_message), "You picked up food!");
+        }
+
+        // Check for super food
+        else if (destination_tile == 'j') {
+            add_to_inventory("Super Food", "Consumable");
+            snprintf(current_message, sizeof(current_message), "You picked up super food!");
         }
 
         // Check for stairs and regenerate map if needed
