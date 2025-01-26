@@ -17,6 +17,18 @@
 #define TOTAL_GOLD 10 // تعداد کل طلای معمولی
 #define TOTAL_GOLD_BAGS 6 // تعداد کل کیسه‌های طلای
 #define TOTAL_BLACK_GOLD 3 // تعداد کل طلای سیاه
+#define MAX_INVENTORY_ITEMS 100
+#define ITEM_NAME_LENGTH 50
+
+typedef struct {
+    char name[ITEM_NAME_LENGTH];
+    char type[ITEM_NAME_LENGTH]; // نوع آیتم مانند غذا، اسلحه، طلسم
+} Item;
+
+Item inventory[MAX_INVENTORY_ITEMS];
+int inventory_count = 0;
+int inventory_open = 0; // 0: بسته، 1: باز
+
 int placed_black_gold = 0; // شمارش طلای سیاه قرار داده شده
 
 int placed_gold_bags = 0; // شمارش کیسه‌های طلای قرار داده شده
@@ -487,6 +499,46 @@ void add_black_gold_to_room(Room *room) {
         map[black_gold_y][black_gold_x] = 'B'; // Place black gold in the map
     }
 }
+void add_to_inventory(const char* item_name, const char* item_type) {
+    if (inventory_count < MAX_INVENTORY_ITEMS) {
+        strncpy(inventory[inventory_count].name, item_name, ITEM_NAME_LENGTH - 1);
+        strncpy(inventory[inventory_count].type, item_type, ITEM_NAME_LENGTH - 1);
+        inventory_count++;
+    } else {
+        printw("Inventory is full. Cannot add more items.\n");
+    }
+}
+void show_inventory() {
+    clear();
+    printw("Inventory:\n");
+    for (int i = 0; i < inventory_count; i++) {
+        printw("%d. %s (%s)\n", i + 1, inventory[i].name, inventory[i].type);
+    }
+    printw("Press the number of the item to use it, or press 'i' to close the inventory and return to the game.\n");
+    refresh();
+
+    int ch;
+    while ((ch = getch()) != 'i') {
+        ch -= '0';
+        if (ch >= 1 && ch <= inventory_count) {
+            // Here you can implement the logic to use the item
+            printw("You used %s.\n", inventory[ch - 1].name);
+            refresh();
+            getch(); // Wait for the user to press a key to acknowledge using the item
+            break;
+        }
+    }
+    clear();
+    inventory_open = 0; // بستن inventory
+}
+
+void clear_message() {
+    move(HEIGHT, 0);
+    clrtoeol(); // Clear the entire line
+    refresh(); // Refresh to show the cleared line
+}
+
+
 void regenerate_map() {
     // Initialize map
     initialize_map();
@@ -545,8 +597,27 @@ void regenerate_map() {
 }
 
 void move_player(char input) {
+    if (tolower(input) == 'i') {
+        if (inventory_open) {
+            clear();
+            inventory_open = 0; // بستن inventory
+        } else {
+            show_inventory();
+            inventory_open = 0; // باز کردن inventory
+        }
+        return; // خروج از تابع تا زمانی که باز و بسته شدن inventory مدیریت شود
+    }
+
+    if (inventory_open) {
+        // اگر inventory باز است، حرکت بازیکن را متوقف کنید
+        return;
+    }
+
     int new_x = player_x;
     int new_y = player_y;
+
+    // پاک کردن پیام قبلی
+    clear_message(); 
 
     switch (tolower(input)) {
         case 'w': new_y--; break;
@@ -561,7 +632,7 @@ void move_player(char input) {
     }
 
     char destination_tile = map[new_y][new_x];
-    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B') {
+    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'w' || destination_tile == 't') {
         map[player_y][player_x] = '.';
         player_x = new_x;
         player_y = new_y;
@@ -581,19 +652,37 @@ void move_player(char input) {
         // Check for gold
         else if (destination_tile == 'g') {
             player_gold += 5; // افزایش طلا
-            snprintf(current_message, sizeof(current_message), "You picked up gold (5 gold)! Your gold is now %d.", player_gold);
+            snprintf(current_message, sizeof(current_message), "You picked up gold! Your gold is now %d.", player_gold);
         }
 
         // Check for gold bags
         else if (destination_tile == '&') {
             player_gold += 10; // افزایش طلا
-            snprintf(current_message, sizeof(current_message), "You picked up a gold bag (10 gold)! Your gold is now %d.", player_gold);
+            snprintf(current_message, sizeof(current_message), "You picked up a gold bag! Your gold is now %d.", player_gold);
         }
 
         // Check for black gold
         else if (destination_tile == 'B') {
             player_gold += 20; // افزایش طلا
-            snprintf(current_message, sizeof(current_message), "You picked up black gold (20 gold)! Your gold is now %d.", player_gold);
+            snprintf(current_message, sizeof(current_message), "You picked up black gold! Your gold is now %d.", player_gold);
+        }
+
+        // Check for food
+        else if (destination_tile == 'f') {
+            add_to_inventory("Food", "Consumable");
+            snprintf(current_message, sizeof(current_message), "You picked up food!");
+        }
+
+        // Check for weapon
+        else if (destination_tile == 'w') {
+            add_to_inventory("Weapon", "Weapon");
+            snprintf(current_message, sizeof(current_message), "You picked up a weapon!");
+        }
+
+        // Check for talisman
+        else if (destination_tile == 't') {
+            add_to_inventory("Talisman", "Magic");
+            snprintf(current_message, sizeof(current_message), "You picked up a talisman!");
         }
 
         // Check for stairs and regenerate map if needed
@@ -614,6 +703,7 @@ void move_player(char input) {
 
     refresh(); // Refresh to show the message
 }
+
 
 void loginUser() {
     char username[USERNAME_LENGTH];
