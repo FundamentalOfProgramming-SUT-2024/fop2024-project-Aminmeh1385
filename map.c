@@ -1,3 +1,4 @@
+
 #include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,8 +14,9 @@
 #define MAX_ROOMS 9
 #define VISION_RADIUS 5
 #define MAX_REGENERATIONS 4 // حداکثر تعداد بازسازی نقشه
-
+#define TOTAL_GOLD 10 // تعداد کل طلای معمولی
 int regenerations = 0; // شمارنده بازسازی‌ها
+int placed_gold = 0;
 // User structure
 typedef struct {
     char username[USERNAME_LENGTH];
@@ -434,6 +436,19 @@ void place_single_special_characters(Room *rooms, int room_count) {
     map[less_y][less_x] = '<';
 }
 
+
+void add_gold_to_room(Room *room) {
+    for (int i = 0; i < 1; i++) { // Add 1 gold per room
+        int gold_x, gold_y;
+        do {
+            gold_x = room->x + 1 + rand() % (room->width - 2);
+            gold_y = room->y + 1 + rand() % (room->height - 2);
+        } while (map[gold_y][gold_x] == 'g'); // Ensure we don't place gold on another gold
+
+        map[gold_y][gold_x] = 'g'; // Place gold in the map
+    }
+}
+
 void regenerate_map() {
     // Initialize map
     initialize_map();
@@ -455,6 +470,11 @@ void regenerate_map() {
     for (int i = 0; i < room_count; i++) {
         place_window_in_room(&rooms[i]);
         add_traps_to_room(&rooms[i]); // اضافه کردن تله‌ها به اتاق‌ها
+        // Add gold to rooms
+        if (placed_gold < TOTAL_GOLD) {
+            add_gold_to_room(&rooms[i]); // اضافه کردن طلا به اتاق‌ها
+            placed_gold++;
+        }
     }
 
     // Place special characters ">" and "<"
@@ -490,7 +510,7 @@ void move_player(char input) {
     }
 
     char destination_tile = map[new_y][new_x];
-    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' ) {
+    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g') {
         map[player_y][player_x] = '.';
         player_x = new_x;
         player_y = new_y;
@@ -504,6 +524,12 @@ void move_player(char input) {
         if (trap_map[player_y][player_x] == 'T') {
             player_hp -= 1; // کاهش HP
             mvprintw(0, 0, "You stepped on a trap! Your HP is now %d.", player_hp);
+        }
+
+        // Check for gold
+        if (destination_tile == 'g') {
+            player_gold += 5; // افزایش طلا
+            mvprintw(0, 0, "You picked up gold! Your gold is now %d.", player_gold);
         }
 
         // Check for stairs and regenerate map if needed
@@ -520,7 +546,6 @@ void move_player(char input) {
     }
     refresh(); // Refresh to show the message
 }
-
    void loginUser() {
     char username[USERNAME_LENGTH];
     char password[PASSWORD_LENGTH];
