@@ -92,7 +92,7 @@ void add_food_to_room(Room *room) {
         do {
             food_x = room->x + 1 + rand() % (room->width - 2);
             food_y = room->y + 1 + rand() % (room->height - 2);
-        } while (map[food_y][food_x] == 'F'); // Ensure we don't place food on another food
+        } while (map[food_y][food_x] == 'f'); // Ensure we don't place food on another food
 
         map[food_y][food_x] = 'f'; // Place food in the map, استفاده از 'F' به جای 🍎
         placed_food++;
@@ -501,6 +501,7 @@ void add_gold_bag_to_room(Room *room) {
         map[gold_bag_y][gold_bag_x] = '&'; // Place gold bag in the map
     }
 }
+
 void add_black_gold_to_room(Room *room) {
     for (int i = 0; i < 1; i++) { // Add 1 black gold per room
         int black_gold_x, black_gold_y;
@@ -568,6 +569,8 @@ void regenerate_map() {
     int room_count = 0;
     int gold_count = 0; // شمارش طلای معمولی
     int food_count = 0; // شمارش غذای معمولی
+    placed_gold_bags = 0; // شمارش کیسه‌های طلای قرار داده شده
+    placed_black_gold = 0; // شمارش طلای سیاه قرار داده شده
 
     // Generate rooms
     while (room_count < MAX_ROOMS) {
@@ -580,19 +583,33 @@ void regenerate_map() {
         }
     }
 
-    // Add windows, traps, gold, and food to rooms
+    // Add windows, traps, gold, food, gold bags, and black gold to rooms
     for (int i = 0; i < room_count; i++) {
         place_window_in_room(&rooms[i]);
         add_traps_to_room(&rooms[i]); // اضافه کردن تله‌ها به اتاق‌ها
+
         // Add gold to rooms
         if (gold_count < TOTAL_GOLD) {
             add_gold_to_room(&rooms[i]); // اضافه کردن طلا به اتاق‌ها
             gold_count++;
         }
+
         // Add food to rooms
         if (food_count < TOTAL_FOOD) {
             add_food_to_room(&rooms[i]); // اضافه کردن غذا به اتاق‌ها
             food_count++;
+        }
+
+        // Add gold bags to rooms
+        if (placed_gold_bags < TOTAL_GOLD_BAGS) {
+            add_gold_bag_to_room(&rooms[i]); // اضافه کردن کیسه طلا به اتاق‌ها
+            placed_gold_bags++;
+        }
+
+        // Add black gold to rooms
+        if (placed_black_gold < TOTAL_BLACK_GOLD) {
+            add_black_gold_to_room(&rooms[i]); // اضافه کردن طلای سیاه به اتاق‌ها
+            placed_black_gold++;
         }
     }
 
@@ -611,7 +628,6 @@ void regenerate_map() {
     print_map(); // Print the new map
     refresh(); // Refresh to show the updated screen
 }
-
 
 void move_player(char input) {
     if (tolower(input) == 'i') {
