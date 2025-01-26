@@ -21,6 +21,9 @@
 #define ITEM_NAME_LENGTH 50
 #define TOTAL_FOOD 10 // تعداد کل غذای معمولی
 #define TOTAL_SUPER_FOOD 6 // تعداد کل غذای اعلا
+#define TOTAL_MAGIC_FOOD 4 // تعداد کل غذای جادویی
+int placed_magic_food = 0; // شمارش غذای جادویی قرار داده شده
+
 int placed_super_food = 0; // شمارش غذای اعلا قرار داده شده
 
 int placed_food = 0; // شمارش غذای قرار داده شده
@@ -113,6 +116,19 @@ void add_super_food_to_room(Room *room) {
         placed_super_food++;
     }
 }
+void add_magic_food_to_room(Room *room) {
+    for (int i = 0; i < 1; i++) { // Add 1 magic food per room
+        int magic_food_x, magic_food_y;
+        do {
+            magic_food_x = room->x + 1 + rand() % (room->width - 2);
+            magic_food_y = room->y + 1 + rand() % (room->height - 2);
+        } while (map[magic_food_y][magic_food_x] == 'm'); // Ensure we don't place magic food on another magic food
+
+        map[magic_food_y][magic_food_x] = 'm'; // Place magic food in the map
+        placed_magic_food++;
+    }
+}
+
 
 void save_game(const char* filename, GameState* game_state) {
     FILE *file = fopen(filename, "wb");
@@ -537,7 +553,6 @@ void add_to_inventory(const char* item_name, const char* item_type) {
         printw("Inventory is full. Cannot add more items.\n");
     }
 }
-
 void show_inventory() {
     clear();
     printw("Inventory:\n");
@@ -569,6 +584,14 @@ void show_inventory() {
                     inventory[j] = inventory[j + 1];
                 }
                 inventory_count--;
+            } else if (strcmp(inventory[ch - 1].name, "Magic Food") == 0) {
+                player_hp += 8; // افزایش HP
+                snprintf(current_message, sizeof(current_message), "You used magic food! Your HP is now %d.", player_hp);
+                // حذف غذای جادویی از inventory پس از استفاده
+                for (int j = ch - 1; j < inventory_count - 1; j++) {
+                    inventory[j] = inventory[j + 1];
+                }
+                inventory_count--;
             } else {
                 printw("You used %s.\n", inventory[ch - 1].name);
                 refresh();
@@ -580,7 +603,6 @@ void show_inventory() {
     inventory_open = 0; // بستن inventory
 }
 
-
 void regenerate_map() {
     // Initialize map
     initialize_map();
@@ -589,6 +611,7 @@ void regenerate_map() {
     int gold_count = 0; // شمارش طلای معمولی
     int food_count = 0; // شمارش غذای معمولی
     int super_food_count = 0; // شمارش غذای اعلا
+    int magic_food_count = 0; // شمارش غذای جادویی
     placed_gold_bags = 0; // شمارش کیسه‌های طلای قرار داده شده
     placed_black_gold = 0; // شمارش طلای سیاه قرار داده شده
 
@@ -603,7 +626,7 @@ void regenerate_map() {
         }
     }
 
-    // Add windows, traps, gold, food, gold bags, black gold, and super food to rooms
+    // Add windows, traps, gold, food, gold bags, black gold, super food, and magic food to rooms
     for (int i = 0; i < room_count; i++) {
         place_window_in_room(&rooms[i]);
         add_traps_to_room(&rooms[i]); // اضافه کردن تله‌ها به اتاق‌ها
@@ -624,6 +647,12 @@ void regenerate_map() {
         if (super_food_count < TOTAL_SUPER_FOOD) {
             add_super_food_to_room(&rooms[i]); // اضافه کردن غذای اعلا به اتاق‌ها
             super_food_count++;
+        }
+
+        // Add magic food to rooms
+        if (magic_food_count < TOTAL_MAGIC_FOOD) {
+            add_magic_food_to_room(&rooms[i]); // اضافه کردن غذای جادویی به اتاق‌ها
+            magic_food_count++;
         }
 
         // Add gold bags to rooms
@@ -656,6 +685,7 @@ void regenerate_map() {
 }
 
 
+
 void move_player(char input) {
     if (tolower(input) == 'i') {
         if (inventory_open) {
@@ -680,14 +710,14 @@ void move_player(char input) {
    // clear_message(); 
 
     switch (tolower(input)) {
-        case 'w': new_y--; break;
-        case 's': new_y++; break;
-        case 'a': new_x--; break;
-        case 'd': new_x++; break;
-        case 'q': new_x--; new_y--; break;
-        case 'e': new_x++; new_y--; break;
-        case 'z': new_x--; new_y++; break;
-        case 'c': new_x++; new_y++; break;
+        case 'w': new_y--; break; // حرکت یک خانه‌ای به بالا
+        case 's': new_y++; break; // حرکت یک خانه‌ای به پایین
+        case 'a': new_x--; break; // حرکت یک خانه‌ای به چپ
+        case 'd': new_x++; break; // حرکت یک خانه‌ای به راست
+        case 'q': new_x--; new_y--; break; // حرکت یک خانه‌ای به بالا چپ
+        case 'e': new_x++; new_y--; break; // حرکت یک خانه‌ای به بالا راست
+        case 'z': new_x--; new_y++; break; // حرکت یک خانه‌ای به پایین چپ
+        case 'c': new_x++; new_y++; break; // حرکت یک خانه‌ای به پایین راست
         default: return;
     }
 
@@ -700,7 +730,7 @@ void move_player(char input) {
     }
 
     char destination_tile = map[new_y][new_x];
-    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j') {
+    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm') {
         map[player_y][player_x] = '.';
         player_x = new_x;
         player_y = new_y;
@@ -745,6 +775,12 @@ void move_player(char input) {
         else if (destination_tile == 'j') {
             add_to_inventory("Super Food", "Consumable");
             snprintf(current_message, sizeof(current_message), "You picked up super food!");
+        }
+
+        // Check for magic food
+        else if (destination_tile == 'm') {
+            add_to_inventory("Magic Food", "Consumable");
+            snprintf(current_message, sizeof(current_message), "You picked up magic food!");
         }
 
         // Check for stairs and regenerate map if needed
