@@ -16,6 +16,9 @@
 #define MAX_REGENERATIONS 4 // حداکثر تعداد بازسازی نقشه
 #define TOTAL_GOLD 10 // تعداد کل طلای معمولی
 #define TOTAL_GOLD_BAGS 6 // تعداد کل کیسه‌های طلای
+#define TOTAL_BLACK_GOLD 3 // تعداد کل طلای سیاه
+int placed_black_gold = 0; // شمارش طلای سیاه قرار داده شده
+
 int placed_gold_bags = 0; // شمارش کیسه‌های طلای قرار داده شده
 
 int regenerations = 0; // شمارنده بازسازی‌ها
@@ -376,6 +379,10 @@ void print_map() {
                 attron(COLOR_PAIR(1)); // Activate yellow color
                 printw("%c", map[i][j]); // Print the gold bag character
                 attroff(COLOR_PAIR(1)); // Deactivate yellow color
+            } else if (map[i][j] == 'B') {
+                attron(COLOR_PAIR(3)); // Activate black color
+                printw("%c", map[i][j]); // Print the black gold character
+                attroff(COLOR_PAIR(3)); // Deactivate black color
             } else if (seen_map[i][j] != ' ') {
                 printw("%c", seen_map[i][j]); // Print the map content
             } else {
@@ -402,6 +409,7 @@ void print_map() {
 
     refresh(); // Refresh the screen to display changes
 }
+
 
 // Initialize trap map
 void initialize_trap_map() {
@@ -465,6 +473,17 @@ void add_gold_bag_to_room(Room *room) {
         map[gold_bag_y][gold_bag_x] = '&'; // Place gold bag in the map
     }
 }
+void add_black_gold_to_room(Room *room) {
+    for (int i = 0; i < 1; i++) { // Add 1 black gold per room
+        int black_gold_x, black_gold_y;
+        do {
+            black_gold_x = room->x + 1 + rand() % (room->width - 2);
+            black_gold_y = room->y + 1 + rand() % (room->height - 2);
+        } while (map[black_gold_y][black_gold_x] == 'B'); // Ensure we don't place black gold on another black gold
+
+        map[black_gold_y][black_gold_x] = 'B'; // Place black gold in the map
+    }
+}
 void regenerate_map() {
     // Initialize map
     initialize_map();
@@ -472,6 +491,7 @@ void regenerate_map() {
     int room_count = 0;
     int gold_count = 0; // شمارش طلای معمولی
     int gold_bag_count = 0; // شمارش کیسه‌های طلای
+    int black_gold_count = 0; // شمارش طلای سیاه
 
     // Generate rooms
     while (room_count < MAX_ROOMS) {
@@ -484,7 +504,7 @@ void regenerate_map() {
         }
     }
 
-    // Add windows, traps, gold, and gold bags to rooms
+    // Add windows, traps, gold, gold bags, and black gold to rooms
     for (int i = 0; i < room_count; i++) {
         place_window_in_room(&rooms[i]);
         add_traps_to_room(&rooms[i]); // اضافه کردن تله‌ها به اتاق‌ها
@@ -497,6 +517,11 @@ void regenerate_map() {
         if (gold_bag_count < TOTAL_GOLD_BAGS) {
             add_gold_bag_to_room(&rooms[i]); // اضافه کردن کیسه‌های طلای به اتاق‌ها
             gold_bag_count++;
+        }
+        // Add black gold to rooms
+        if (black_gold_count < TOTAL_BLACK_GOLD) {
+            add_black_gold_to_room(&rooms[i]); // اضافه کردن طلای سیاه به اتاق‌ها
+            black_gold_count++;
         }
     }
 
@@ -515,6 +540,7 @@ void regenerate_map() {
     print_map(); // Print the new map
     refresh(); // Refresh to show the updated screen
 }
+
 void move_player(char input) {
     int new_x = player_x;
     int new_y = player_y;
@@ -532,7 +558,7 @@ void move_player(char input) {
     }
 
     char destination_tile = map[new_y][new_x];
-    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&') {
+    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B') {
         map[player_y][player_x] = '.';
         player_x = new_x;
         player_y = new_y;
@@ -560,6 +586,12 @@ void move_player(char input) {
             mvprintw(0, 0, "You picked up a gold bag! Your gold is now %d.", player_gold);
         }
 
+        // Check for black gold
+        if (destination_tile == 'B') {
+            player_gold += 20; // افزایش طلا
+            mvprintw(0, 0, "You picked up black gold! Your gold is now %d.", player_gold);
+        }
+
         // Check for stairs and regenerate map if needed
         if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
             regenerations++;
@@ -574,6 +606,7 @@ void move_player(char input) {
     }
     refresh(); // Refresh to show the message
 }
+
 
    void loginUser() {
     char username[USERNAME_LENGTH];
@@ -747,6 +780,8 @@ int main() {
     if (has_colors()) {
         start_color();
         init_pair(1, COLOR_YELLOW, COLOR_BLACK); // تعریف رنگ زرد
+        init_pair(2, COLOR_WHITE, COLOR_BLACK);  // تعریف رنگ سفید برای نمایش عادی
+        init_pair(3, COLOR_BLACK, COLOR_WHITE);  // تعریف رنگ سیاه برای طلای سیاه
     }
 
     // Load users from file when the program starts
