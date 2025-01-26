@@ -15,6 +15,9 @@
 #define VISION_RADIUS 5
 #define MAX_REGENERATIONS 4 // حداکثر تعداد بازسازی نقشه
 #define TOTAL_GOLD 10 // تعداد کل طلای معمولی
+#define TOTAL_GOLD_BAGS 6 // تعداد کل کیسه‌های طلای
+int placed_gold_bags = 0; // شمارش کیسه‌های طلای قرار داده شده
+
 int regenerations = 0; // شمارنده بازسازی‌ها
 int placed_gold = 0;
 // User structure
@@ -357,7 +360,6 @@ void update_seen_tiles() {
         }
     }
 }
-
 void print_map() {
     clear(); // Clear the console (use "cls" for Windows)
 
@@ -370,6 +372,10 @@ void print_map() {
                 } else {
                     printw(" "); // Fill the rest of the row with spaces
                 }
+            } else if (map[i][j] == '&') {
+                attron(COLOR_PAIR(1)); // Activate yellow color
+                printw("%c", map[i][j]); // Print the gold bag character
+                attroff(COLOR_PAIR(1)); // Deactivate yellow color
             } else if (seen_map[i][j] != ' ') {
                 printw("%c", seen_map[i][j]); // Print the map content
             } else {
@@ -448,12 +454,24 @@ void add_gold_to_room(Room *room) {
         map[gold_y][gold_x] = 'g'; // Place gold in the map
     }
 }
+void add_gold_bag_to_room(Room *room) {
+    for (int i = 0; i < 1; i++) { // Add 1 gold bag per room
+        int gold_bag_x, gold_bag_y;
+        do {
+            gold_bag_x = room->x + 1 + rand() % (room->width - 2);
+            gold_bag_y = room->y + 1 + rand() % (room->height - 2);
+        } while (map[gold_bag_y][gold_bag_x] == '&'); // Ensure we don't place gold bag on another gold bag
 
+        map[gold_bag_y][gold_bag_x] = '&'; // Place gold bag in the map
+    }
+}
 void regenerate_map() {
     // Initialize map
     initialize_map();
 
     int room_count = 0;
+    int gold_count = 0; // شمارش طلای معمولی
+    int gold_bag_count = 0; // شمارش کیسه‌های طلای
 
     // Generate rooms
     while (room_count < MAX_ROOMS) {
@@ -466,14 +484,19 @@ void regenerate_map() {
         }
     }
 
-    // Add windows and traps to rooms
+    // Add windows, traps, gold, and gold bags to rooms
     for (int i = 0; i < room_count; i++) {
         place_window_in_room(&rooms[i]);
         add_traps_to_room(&rooms[i]); // اضافه کردن تله‌ها به اتاق‌ها
         // Add gold to rooms
-        if (placed_gold < TOTAL_GOLD) {
+        if (gold_count < TOTAL_GOLD) {
             add_gold_to_room(&rooms[i]); // اضافه کردن طلا به اتاق‌ها
-            placed_gold++;
+            gold_count++;
+        }
+        // Add gold bags to rooms
+        if (gold_bag_count < TOTAL_GOLD_BAGS) {
+            add_gold_bag_to_room(&rooms[i]); // اضافه کردن کیسه‌های طلای به اتاق‌ها
+            gold_bag_count++;
         }
     }
 
@@ -492,7 +515,6 @@ void regenerate_map() {
     print_map(); // Print the new map
     refresh(); // Refresh to show the updated screen
 }
-
 void move_player(char input) {
     int new_x = player_x;
     int new_y = player_y;
@@ -510,7 +532,7 @@ void move_player(char input) {
     }
 
     char destination_tile = map[new_y][new_x];
-    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g') {
+    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&') {
         map[player_y][player_x] = '.';
         player_x = new_x;
         player_y = new_y;
@@ -532,6 +554,12 @@ void move_player(char input) {
             mvprintw(0, 0, "You picked up gold! Your gold is now %d.", player_gold);
         }
 
+        // Check for gold bags
+        if (destination_tile == '&') {
+            player_gold += 10; // افزایش طلا
+            mvprintw(0, 0, "You picked up a gold bag! Your gold is now %d.", player_gold);
+        }
+
         // Check for stairs and regenerate map if needed
         if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
             regenerations++;
@@ -546,6 +574,7 @@ void move_player(char input) {
     }
     refresh(); // Refresh to show the message
 }
+
    void loginUser() {
     char username[USERNAME_LENGTH];
     char password[PASSWORD_LENGTH];
@@ -708,12 +737,17 @@ void loadUsers() {
         fclose(file);
     }
 }
-
 int main() {
     initscr(); // Initialize the ncurses screen
     noecho();  // Disable echoing of input characters
     cbreak();  // Disable line buffering
     srand(time(NULL)); // Initialize random seed for password generation
+
+    // Initialize colors
+    if (has_colors()) {
+        start_color();
+        init_pair(1, COLOR_YELLOW, COLOR_BLACK); // تعریف رنگ زرد
+    }
 
     // Load users from file when the program starts
     loadUsers();
