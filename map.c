@@ -25,6 +25,8 @@
 int placed_magic_food = 0; // شمارش غذای جادویی قرار داده شده
 
 int placed_super_food = 0; // شمارش غذای اعلا قرار داده شده
+int magic_food_active = 0; // 0: غیرفعال، 1: فعال
+int magic_food_moves = 0; // تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
 
 int placed_food = 0; // شمارش غذای قرار داده شده
 
@@ -586,7 +588,8 @@ void show_inventory() {
                 inventory_count--;
             } else if (strcmp(inventory[ch - 1].name, "Magic Food") == 0) {
                 player_hp += 8; // افزایش HP
-                snprintf(current_message, sizeof(current_message), "You used magic food! Your HP is now %d.", player_hp);
+                magic_food_moves = 7; // مقداردهی به تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
+                snprintf(current_message, sizeof(current_message), "You used magic food! Your HP is now %d. You have 7 magic moves.", player_hp);
                 // حذف غذای جادویی از inventory پس از استفاده
                 for (int j = ch - 1; j < inventory_count - 1; j++) {
                     inventory[j] = inventory[j + 1];
@@ -602,6 +605,7 @@ void show_inventory() {
     clear();
     inventory_open = 0; // بستن inventory
 }
+
 
 void regenerate_map() {
     // Initialize map
@@ -685,7 +689,6 @@ void regenerate_map() {
 }
 
 
-
 void move_player(char input) {
     if (tolower(input) == 'i') {
         if (inventory_open) {
@@ -703,103 +706,182 @@ void move_player(char input) {
         return;
     }
 
-    int new_x = player_x;
-    int new_y = player_y; // مقداردهی به new_y
+    int dx = 0, dy = 0; // تعریف متغیرهای dx و dy
 
     // پاک کردن پیام قبلی
-   // clear_message(); 
+    //clear_message(); 
 
     switch (tolower(input)) {
-        case 'w': new_y--; break; // حرکت یک خانه‌ای به بالا
-        case 's': new_y++; break; // حرکت یک خانه‌ای به پایین
-        case 'a': new_x--; break; // حرکت یک خانه‌ای به چپ
-        case 'd': new_x++; break; // حرکت یک خانه‌ای به راست
-        case 'q': new_x--; new_y--; break; // حرکت یک خانه‌ای به بالا چپ
-        case 'e': new_x++; new_y--; break; // حرکت یک خانه‌ای به بالا راست
-        case 'z': new_x--; new_y++; break; // حرکت یک خانه‌ای به پایین چپ
-        case 'c': new_x++; new_y++; break; // حرکت یک خانه‌ای به پایین راست
+        case 'w': dy = -1; break; // حرکت به بالا
+        case 's': dy = 1; break; // حرکت به پایین
+        case 'a': dx = -1; break; // حرکت به چپ
+        case 'd': dx = 1; break; // حرکت به راست
+        case 'q': dx = -1; dy = -1; break; // حرکت به بالا چپ
+        case 'e': dx = 1; dy = -1; break; // حرکت به بالا راست
+        case 'z': dx = -1; dy = 1; break; // حرکت به پایین چپ
+        case 'c': dx = 1; dy = 1; break; // حرکت به پایین راست
         default: return;
     }
 
-    // بررسی محدوده آرایه‌ها
-    if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
-        snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
-        mvprintw(HEIGHT, 0, "%s", current_message);
-        refresh();
-        return;
-    }
+    if (magic_food_moves > 0) {
+        // حرکت در جهت مشخص شده تا برخورد به مانع
+        while (1) {
+            int new_x = player_x + dx;
+            int new_y = player_y + dy;
 
-    char destination_tile = map[new_y][new_x];
-    if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm') {
-        map[player_y][player_x] = '.';
-        player_x = new_x;
-        player_y = new_y;
-        map[player_y][player_x] = '@';
-        update_seen_tiles();
+            // بررسی محدوده آرایه‌ها
+            if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT || map[new_y][new_x] == '#' || map[new_y][new_x] == '|') {
+                break; // برخورد به مانع یا خروج از محدوده
+            }
 
-        // Clear the line before printing a new message
-        move(HEIGHT, 0);
-        clrtoeol();
+            char destination_tile = map[new_y][new_x];
+            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm') {
+                map[player_y][player_x] = '.';
+                player_x = new_x;
+                player_y = new_y;
+                map[player_y][player_x] = '@';
+                update_seen_tiles();
 
-        // Check for traps
-        if (trap_map[player_y][player_x] == 'T') {
-            player_hp -= 1; // کاهش HP
-            snprintf(current_message, sizeof(current_message), "You stepped on a trap! Your HP is now %d.", player_hp);
+                // Check for traps
+                if (trap_map[player_y][player_x] == 'T') {
+                    player_hp -= 1; // کاهش HP
+                    snprintf(current_message, sizeof(current_message), "You stepped on a trap! Your HP is now %d.", player_hp);
+                }
+
+                // Check for gold
+                else if (destination_tile == 'g') {
+                    player_gold += 5; // افزایش طلا
+                    snprintf(current_message, sizeof(current_message), "You picked up gold! Your gold is now %d.", player_gold);
+                }
+
+                // Check for gold bags
+                else if (destination_tile == '&') {
+                    player_gold += 10; // افزایش طلا
+                    snprintf(current_message, sizeof(current_message), "You picked up a gold bag! Your gold is now %d.", player_gold);
+                }
+
+                // Check for black gold
+                else if (destination_tile == 'B') {
+                    player_gold += 20; // افزایش طلا
+                    snprintf(current_message, sizeof(current_message), "You picked up black gold! Your gold is now %d.", player_gold);
+                }
+
+                // Check for food
+                else if (destination_tile == 'f') {
+                    add_to_inventory("Food", "Consumable");
+                    snprintf(current_message, sizeof(current_message), "You picked up food!");
+                }
+
+                // Check for super food
+                else if (destination_tile == 'j') {
+                    add_to_inventory("Super Food", "Consumable");
+                    snprintf(current_message, sizeof(current_message), "You picked up super food!");
+                }
+
+                // Check for magic food
+                else if (destination_tile == 'm') {
+                    add_to_inventory("Magic Food", "Consumable");
+                    snprintf(current_message, sizeof(current_message), "You picked up magic food!");
+                }
+
+                // Check for stairs and regenerate map if needed
+                else if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
+                    regenerations++;
+                    regenerate_map();
+                    snprintf(current_message, sizeof(current_message), "Map regenerated! You are now on floor %d.", regenerations + 1);
+                } else if (regenerations >= MAX_REGENERATIONS) {
+                    snprintf(current_message, sizeof(current_message), "Maximum map regenerations reached.");
+                }
+            } else {
+                snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
+                break;
+            }
+
+            // چاپ پیام فعلی
+            mvprintw(HEIGHT, 0, "%s", current_message);
+            refresh(); // Refresh to show the message
         }
-
-        // Check for gold
-        else if (destination_tile == 'g') {
-            player_gold += 5; // افزایش طلا
-            snprintf(current_message, sizeof(current_message), "You picked up gold! Your gold is now %d.", player_gold);
-        }
-
-        // Check for gold bags
-        else if (destination_tile == '&') {
-            player_gold += 10; // افزایش طلا
-            snprintf(current_message, sizeof(current_message), "You picked up a gold bag! Your gold is now %d.", player_gold);
-        }
-
-        // Check for black gold
-        else if (destination_tile == 'B') {
-            player_gold += 20; // افزایش طلا
-            snprintf(current_message, sizeof(current_message), "You picked up black gold! Your gold is now %d.", player_gold);
-        }
-
-        // Check for food
-        else if (destination_tile == 'f') {
-            add_to_inventory("Food", "Consumable");
-            snprintf(current_message, sizeof(current_message), "You picked up food!");
-        }
-
-        // Check for super food
-        else if (destination_tile == 'j') {
-            add_to_inventory("Super Food", "Consumable");
-            snprintf(current_message, sizeof(current_message), "You picked up super food!");
-        }
-
-        // Check for magic food
-        else if (destination_tile == 'm') {
-            add_to_inventory("Magic Food", "Consumable");
-            snprintf(current_message, sizeof(current_message), "You picked up magic food!");
-        }
-
-        // Check for stairs and regenerate map if needed
-        else if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
-            regenerations++;
-            regenerate_map();
-            snprintf(current_message, sizeof(current_message), "Map regenerated! You are now on floor %d.", regenerations + 1);
-        } else if (regenerations >= MAX_REGENERATIONS) {
-            snprintf(current_message, sizeof(current_message), "Maximum map regenerations reached.");
-        }
-
+        magic_food_moves--; // کاهش تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
     } else {
-        snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
+        int new_x = player_x + dx;
+        int new_y = player_y + dy;
+
+        // بررسی محدوده آرایه‌ها
+        if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
+            snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
+            mvprintw(HEIGHT, 0, "%s", current_message);
+            refresh();
+            return;
+        }
+
+        char destination_tile = map[new_y][new_x];
+        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm') {
+            map[player_y][player_x] = '.';
+            player_x = new_x;
+            player_y = new_y;
+            map[player_y][player_x] = '@';
+            update_seen_tiles();
+
+            // Check for traps
+            if (trap_map[player_y][player_x] == 'T') {
+                player_hp -= 1; // کاهش HP
+                snprintf(current_message, sizeof(current_message), "You stepped on a trap! Your HP is now %d.", player_hp);
+            }
+
+            // Check for gold
+            else if (destination_tile == 'g') {
+                player_gold += 5; // افزایش طلا
+                snprintf(current_message, sizeof(current_message), "You picked up gold! Your gold is now %d.", player_gold);
+            }
+
+            // Check for gold bags
+            else if (destination_tile == '&') {
+                player_gold += 10; // افزایش طلا
+                snprintf(current_message, sizeof(current_message), "You picked up a gold bag! Your gold is now %d.", player_gold);
+            }
+
+            // Check for black gold
+            else if (destination_tile == 'B') {
+                player_gold += 20; // افزایش طلا
+                snprintf(current_message, sizeof(current_message), "You picked up black gold! Your gold is now %d.", player_gold);
+            }
+
+            // Check for food
+            else if (destination_tile == 'f') {
+                add_to_inventory("Food", "Consumable");
+                snprintf(current_message, sizeof(current_message), "You picked up food!");
+            }
+
+            // Check for super food
+            else if (destination_tile == 'j') {
+                add_to_inventory("Super Food", "Consumable");
+                snprintf(current_message, sizeof(current_message), "You picked up super food!");
+            }
+
+            // Check for magic food
+            else if (destination_tile == 'm') {
+                add_to_inventory("Magic Food", "Consumable");
+                snprintf(current_message, sizeof(current_message), "You picked up magic food!");
+            }
+
+            // Check for stairs and regenerate map if needed
+            else if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
+                regenerations++;
+                regenerate_map();
+                snprintf(current_message, sizeof(current_message), "Map regenerated! You are now on floor %d.", regenerations + 1);
+            } else if (regenerations >= MAX_REGENERATIONS) {
+                snprintf(current_message, sizeof(current_message), "Maximum map regenerations reached.");
+            }
+
+        } else {
+            snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
+        }
+
+        // چاپ پیام فعلی
+        mvprintw(HEIGHT, 0, "%s", current_message);
+
+        refresh(); // Refresh to show the message
     }
-
-    // چاپ پیام فعلی
-    mvprintw(HEIGHT, 0, "%s", current_message);
-
-    refresh(); // Refresh to show the message
 }
 
 
