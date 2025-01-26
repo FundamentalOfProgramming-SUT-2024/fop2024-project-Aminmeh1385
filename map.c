@@ -20,7 +20,7 @@
 int placed_black_gold = 0; // شمارش طلای سیاه قرار داده شده
 
 int placed_gold_bags = 0; // شمارش کیسه‌های طلای قرار داده شده
-
+char current_message[100] = ""; // متغیری برای ذخیره پیام فعلی
 int regenerations = 0; // شمارنده بازسازی‌ها
 int placed_gold = 0;
 // User structure
@@ -407,6 +407,9 @@ void print_map() {
         printw("\n");
     }
 
+    // چاپ پیام فعلی
+    mvprintw(HEIGHT, 0, "%s", current_message);
+
     refresh(); // Refresh the screen to display changes
 }
 
@@ -564,51 +567,55 @@ void move_player(char input) {
         player_y = new_y;
         map[player_y][player_x] = '@';
         update_seen_tiles();
-        
+
         // Clear the line before printing a new message
-        mvprintw(0, 0, "                                           ");
+        move(HEIGHT, 0);
+        clrtoeol();
 
         // Check for traps
         if (trap_map[player_y][player_x] == 'T') {
             player_hp -= 1; // کاهش HP
-            mvprintw(0, 0, "You stepped on a trap! Your HP is now %d.", player_hp);
+            snprintf(current_message, sizeof(current_message), "You stepped on a trap! Your HP is now %d.", player_hp);
         }
 
         // Check for gold
-        if (destination_tile == 'g') {
+        else if (destination_tile == 'g') {
             player_gold += 5; // افزایش طلا
-            mvprintw(0, 0, "You picked up gold! Your gold is now %d.", player_gold);
+            snprintf(current_message, sizeof(current_message), "You picked up gold (5 gold)! Your gold is now %d.", player_gold);
         }
 
         // Check for gold bags
-        if (destination_tile == '&') {
+        else if (destination_tile == '&') {
             player_gold += 10; // افزایش طلا
-            mvprintw(0, 0, "You picked up a gold bag! Your gold is now %d.", player_gold);
+            snprintf(current_message, sizeof(current_message), "You picked up a gold bag (10 gold)! Your gold is now %d.", player_gold);
         }
 
         // Check for black gold
-        if (destination_tile == 'B') {
+        else if (destination_tile == 'B') {
             player_gold += 20; // افزایش طلا
-            mvprintw(0, 0, "You picked up black gold! Your gold is now %d.", player_gold);
+            snprintf(current_message, sizeof(current_message), "You picked up black gold (20 gold)! Your gold is now %d.", player_gold);
         }
 
         // Check for stairs and regenerate map if needed
-        if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
+        else if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
             regenerations++;
             regenerate_map();
-            mvprintw(0, 0, "Map regenerated! You are now on floor %d.", regenerations + 1);
+            snprintf(current_message, sizeof(current_message), "Map regenerated! You are now on floor %d.", regenerations + 1);
         } else if (regenerations >= MAX_REGENERATIONS) {
-            mvprintw(0, 0, "Maximum map regenerations reached.");
+            snprintf(current_message, sizeof(current_message), "Maximum map regenerations reached.");
         }
 
     } else {
-        mvprintw(0, 0, "You cannot move there! That path is blocked.");
+        snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
     }
+
+    // چاپ پیام فعلی
+    mvprintw(HEIGHT, 0, "%s", current_message);
+
     refresh(); // Refresh to show the message
 }
 
-
-   void loginUser() {
+void loginUser() {
     char username[USERNAME_LENGTH];
     char password[PASSWORD_LENGTH];
 
@@ -715,7 +722,6 @@ void move_player(char input) {
 
     printw("Invalid username or password.\n");
 }
-
 
 void resetPassword() {
     char email[EMAIL_LENGTH];
