@@ -22,6 +22,14 @@
 #define TOTAL_FOOD 10 // تعداد کل غذای معمولی
 #define TOTAL_SUPER_FOOD 6 // تعداد کل غذای اعلا
 #define TOTAL_MAGIC_FOOD 4 // تعداد کل غذای جادویی
+#define COLOR_RED 1
+#define COLOR_GREEN 2
+#define COLOR_YELLOW 3
+#define COLOR_BLUE 4
+#define COLOR_MAGENTA 5
+
+int player_color = COLOR_YELLOW; // رنگ پیش‌فرض بازیکن
+
 int placed_magic_food = 0; // شمارش غذای جادویی قرار داده شده
 
 int placed_super_food = 0; // شمارش غذای اعلا قرار داده شده
@@ -94,6 +102,53 @@ typedef struct {
     Room rooms[MAX_ROOMS];
     int room_count;
 } GameState;
+void init_colors() {
+    if (has_colors()) {
+        start_color();
+        init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
+        init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
+        init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
+        init_pair(COLOR_BLUE, COLOR_BLUE, COLOR_BLACK);
+        init_pair(COLOR_MAGENTA, COLOR_MAGENTA, COLOR_BLACK);
+        // ... سایر رنگ‌ها
+    }
+}
+void settings() {
+    clear();
+    printw("Select your player color:\n");
+    printw("1. Red\n");
+    printw("2. Green\n");
+    printw("3. Yellow\n");
+    printw("4. Blue\n");
+    printw("5. Magenta\n");
+    printw("Enter your choice: ");
+    refresh();
+    
+    int choice = getch() - '0';
+    switch (choice) {
+        case 1:
+            player_color = COLOR_RED;
+            break;
+        case 2:
+            player_color = COLOR_GREEN;
+            break;
+        case 3:
+            player_color = COLOR_YELLOW;
+            break;
+        case 4:
+            player_color = COLOR_BLUE;
+            break;
+        case 5:
+            player_color = COLOR_MAGENTA;
+            break;
+        default:
+            printw("Invalid choice. Using default color (Yellow).\n");
+            player_color = COLOR_YELLOW;
+            getch(); // Wait for user to press a key
+            break;
+    }
+}
+
 void add_food_to_room(Room *room) {
     for (int i = 0; i < 1; i++) { // Add 1 food per room
         int food_x, food_y;
@@ -433,18 +488,22 @@ void print_map() {
                 } else {
                     printw(" ");
                 }
+            } else if (i == player_y && j == player_x) {
+                attron(COLOR_PAIR(player_color));
+                printw("%c", '@');
+                attroff(COLOR_PAIR(player_color));
             } else if (map[i][j] == '&') {
-                attron(COLOR_PAIR(1));
+                attron(COLOR_PAIR(COLOR_YELLOW));
                 printw("%c", map[i][j]);
-                attroff(COLOR_PAIR(1));
+                attroff(COLOR_PAIR(COLOR_YELLOW));
             } else if (map[i][j] == 'B') {
-                attron(COLOR_PAIR(3));
+                attron(COLOR_PAIR(COLOR_BLACK));
                 printw("%c", map[i][j]);
-                attroff(COLOR_PAIR(3));
+                attroff(COLOR_PAIR(COLOR_BLACK));
             } else if (map[i][j] == 'f') {
-                attron(COLOR_PAIR(2));
+                attron(COLOR_PAIR(COLOR_GREEN));
                 printw("%c", map[i][j]);
-                attroff(COLOR_PAIR(2));
+                attroff(COLOR_PAIR(COLOR_GREEN));
             } else if (seen_map[i][j] != ' ') {
                 printw("%c", seen_map[i][j]);
             } else {
@@ -470,7 +529,6 @@ void print_map() {
 
     refresh(); // Refresh to show the message
 }
-
 
 // Initialize trap map
 void initialize_trap_map() {
@@ -1053,12 +1111,7 @@ int main() {
     srand(time(NULL)); // Initialize random seed for password generation
 
     // Initialize colors
-    if (has_colors()) {
-        start_color();
-        init_pair(1, COLOR_YELLOW, COLOR_BLACK); // تعریف رنگ زرد
-        init_pair(2, COLOR_WHITE, COLOR_BLACK);  // تعریف رنگ سفید برای نمایش عادی
-        init_pair(3, COLOR_BLACK, COLOR_WHITE);  // تعریف رنگ سیاه برای طلای سیاه
-    }
+    init_colors();
 
     // Load users from file when the program starts
     loadUsers();
@@ -1072,7 +1125,8 @@ int main() {
         printw("3. User login\n");
         printw("4. Reset password\n");
         printw("5. Recover forgotten password\n");
-        printw("6. Exit\n");
+        printw("6. Settings\n"); // افزودن گزینه تنظیمات
+        printw("7. Exit\n");
         printw("Enter your choice: ");
         refresh(); // Refresh to show the menu
 
@@ -1097,13 +1151,16 @@ int main() {
                 recoverPassword();
                 break;
             case 6:
+                settings(); // فراخوانی تنظیمات
+                break;
+            case 7:
                 printw("Exiting program.\n");
                 break;
             default:
                 printw("Invalid choice.\n");
                 getch(); // Wait for user to press a key
         }
-    } while (choice != 6);
+    } while (choice != 7);
 
     endwin(); // End the ncurses mode
     return 0;
