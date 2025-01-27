@@ -115,6 +115,18 @@ void save_game(const char* filename, GameState* game_state) {
         printw("Error: Unable to save the game.\n");
     }
 }
+int load_game(const char* filename, GameState* game_state) {
+    FILE *file = fopen(filename, "rb");
+    if (file) {
+        fread(game_state, sizeof(GameState), 1, file);
+        fclose(file);
+        return 1; // موفقیت‌آمیز بودن لود بازی
+    } else {
+        printw("Error: Unable to load the game.\n");
+        return 0; // شکست لود بازی
+    }
+}
+
 void add_save_file_to_list(const char* filename) {
     FILE *file = fopen(SAVE_LIST_FILE, "a");
     if (file) {
@@ -262,17 +274,7 @@ void saveUsers() {
 }
 
 
-int load_game(const char* filename, GameState* game_state) {
-    FILE *file = fopen(filename, "rb");
-    if (file) {
-        fread(game_state, sizeof(GameState), 1, file);
-        fclose(file);
-        return 1; // بازی با موفقیت بارگذاری شد
-    } else {
-        printw("No saved game found with the name %s. Starting a new game.\n", filename);
-        return 0; // هیچ بازی ذخیره‌شده‌ای یافت نشد، شروع بازی جدید
-    }
-}
+
 int findUser(const char* username) {
     for (int i = 0; i < userCount; i++) {
         if (strcmp(users[i].username, username) == 0) {
@@ -1109,11 +1111,23 @@ void loginUser() {
             scanw(" %c", &load_or_new);
 
             if (tolower(load_or_new) == 'l') {
-                clear(); // پاک کردن صفحه برای نمایش لیست بازی‌های ذخیره شده
-                load_save_list(); // نمایش لیست بازی‌های ذخیره شده
+                clear();
+                load_save_list();
                 printw("Enter the name of the save file to load (e.g., save1, save2, ...): ");
                 scanw("%s", filename);
                 game_loaded = load_game(filename, &game_state);
+
+                if (game_loaded) {
+                    // بازیابی داده‌های بازی از فایل
+                    player_x = game_state.player_x;
+                    player_y = game_state.player_y;
+                    player_hp = game_state.player_hp;
+                    memcpy(map, game_state.map, sizeof(game_state.map));
+                    memcpy(trap_map, game_state.trap_map, sizeof(game_state.trap_map));
+                    memcpy(rooms, game_state.rooms, sizeof(game_state.rooms));
+                    room_count = game_state.room_count;
+                    update_seen_tiles();
+                }
             }
 
             if (!game_loaded) {
@@ -1147,45 +1161,51 @@ void loginUser() {
                 update_seen_tiles();
             }
 
-            play_music(); // پخش موزیک انتخاب شده
+            play_music();
 
-            // حذف تایم‌اوت `getch()` و استفاده از حالت مسدودکننده
             char input;
             while (1) {
                 print_map();
                 printw("Use W/A/S/D to move horizontally and vertically\n");
                 printw("Use Q/E/Z/C to move diagonally\nPress G to quit.\n");
                 printw("Press P to save game.\n");
-                printw("Press O to open settings.\n"); // افزودن پیام برای دسترسی به تنظیمات
+                printw("Press O to open settings.\n");
                 refresh();
                 input = getch();
-                if (tolower(input) == 'o') { // بررسی کلید o
-                    stop_music(); // متوقف کردن موزیک در زمان نمایش تنظیمات
-                    flushinp(); // پاک کردن بافر ورودی‌ها
-                    settings(); // فراخوانی منوی تنظیمات
-                    play_music(); // پخش مجدد موزیک پس از انجام تنظیمات
+                if (tolower(input) == 'o') {
+                    stop_music();
+                    flushinp();
+                    settings();
+                    play_music();
                 }
                 if (tolower(input) == 'g') break;
                 if (tolower(input) == 'p') {
-                    flushinp(); // پاک کردن بافر ورودی‌ها قبل از نمایش پیام
+                    flushinp();
                     printw("Enter a name for your save file (e.g., save1, save2, ...): ");
                     move(LINES - 1, 0);
                     echo();
                     scanw("%s", filename);
                     noecho();
-                    add_save_file_to_list(filename); // افزودن نام فایل به لیست ذخیره‌ها
+                    add_save_file_to_list(filename);
+                    game_state.player_x = player_x;
+                    game_state.player_y = player_y;
+                    game_state.player_hp = player_hp;
+                    memcpy(game_state.map, map, sizeof(map));
+                    memcpy(game_state.trap_map, trap_map, sizeof(trap_map));
+                    memcpy(game_state.rooms, rooms, sizeof(rooms));
+                    game_state.room_count = room_count;
                     save_game(filename, &game_state);
-                    clear(); // پاک کردن صفحه برای نمایش پیام
+                    clear();
                     printw("Game saved successfully as %s.\n", filename);
-                    refresh(); // تازه‌سازی صفحه برای نمایش پیام
-                    getch(); // Wait for user to press a key to acknowledge saving
+                    refresh();
+                    getch();
                 }
                 move_player(input);
                 if (player_hp <= 0) {
-                    clear(); // پاک کردن صفحه برای نمایش پیام
+                    clear();
                     printw("Game Over! You ran out of HP.\n");
-                    refresh(); // تازه‌سازی صفحه برای نمایش پیام
-                    getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
+                    refresh();
+                    getch();
                     break;
                 }
             }
@@ -1194,11 +1214,12 @@ void loginUser() {
         }
     }
 
-    clear(); // پاک کردن صفحه برای نمایش پیام
+    clear();
     printw("Invalid username or password.\n");
-    refresh(); // تازه‌سازی صفحه برای نمایش پیام
-    getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
+    refresh();
+    getch();
 }
+
 
 void resetPassword() {
     char username[USERNAME_LENGTH];
