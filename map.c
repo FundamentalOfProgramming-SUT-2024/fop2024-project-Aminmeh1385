@@ -27,6 +27,8 @@
 #define COLOR_YELLOW 3
 #define COLOR_BLUE 4
 #define COLOR_MAGENTA 5
+#define SAVE_LIST_FILE "save_list.txt" // فایل لیست نام‌های ذخیره
+
 
 int player_color = COLOR_YELLOW; // رنگ پیش‌فرض بازیکن
 int selected_music = 0; // موزیک انتخابی، 0: هیچ موزیکی انتخاب نشده
@@ -103,6 +105,29 @@ typedef struct {
     Room rooms[MAX_ROOMS];
     int room_count;
 } GameState;
+
+void add_save_file_to_list(const char* filename) {
+    FILE *file = fopen(SAVE_LIST_FILE, "a");
+    if (file) {
+        fprintf(file, "%s\n", filename);
+        fclose(file);
+    }
+}
+
+void load_save_list() {
+    FILE *file = fopen(SAVE_LIST_FILE, "r");
+    if (file) {
+        char line[50];
+        printw("Saved games:\n");
+        while (fgets(line, sizeof(line), file)) {
+            printw("%s", line);
+        }
+        fclose(file);
+    } else {
+        printw("No saved games found.\n");
+    }
+}
+
 void init_colors() {
     if (has_colors()) {
         start_color();
@@ -993,7 +1018,6 @@ void stop_music() {
     system("pkill mpg123"); // متوقف کردن موزیک
 }
 
-
 void loginUser() {
     char username[USERNAME_LENGTH];
     char password[PASSWORD_LENGTH];
@@ -1023,7 +1047,8 @@ void loginUser() {
             scanw(" %c", &load_or_new);
 
             if (tolower(load_or_new) == 'l') {
-                printw("Enter the name of the save file (e.g., save1, save2, ...): ");
+                load_save_list(); // نمایش لیست بازی‌های ذخیره شده
+                printw("Enter the name of the save file to load (e.g., save1, save2, ...): ");
                 scanw("%s", filename);
                 game_loaded = load_game(filename, &game_state);
             }
@@ -1061,8 +1086,7 @@ void loginUser() {
 
             play_music(); // پخش موزیک انتخاب شده
 
-            timeout(100); // Set a timeout for getch to make the game responsive
-
+            // حذف تایم‌اوت `getch()` و استفاده از حالت مسدودکننده
             char input;
             while (1) {
                 print_map();
@@ -1071,26 +1095,17 @@ void loginUser() {
                 printw("Press P to save game.\n");
                 refresh();
                 input = getch();
-                if (tolower(input) == 'g') {
-                stop_music();
-                break;
-                }
-                
+                if (tolower(input) == 'g') break;
                 if (tolower(input) == 'p') {
-                    game_state.player_x = player_x;
-                    game_state.player_y = player_y;
-                    game_state.player_hp = player_hp;
-                    memcpy(game_state.map, map, sizeof(map));
-                    memcpy(game_state.trap_map, trap_map, sizeof(trap_map));
-                    memcpy(game_state.rooms, rooms, sizeof(rooms));
-                    game_state.room_count = room_count;
-
                     printw("Enter a name for your save file (e.g., save1, save2, ...): ");
                     move(LINES - 1, 0);
                     echo();
                     scanw("%s", filename);
                     noecho();
+                    add_save_file_to_list(filename); // افزودن نام فایل به لیست ذخیره‌ها
                     save_game(filename, &game_state);
+                    printw("Game saved successfully as %s.\n", filename);
+                    getch(); // Wait for user to press a key to acknowledge saving
                 }
                 move_player(input);
                 if (player_hp <= 0) {
@@ -1099,14 +1114,13 @@ void loginUser() {
                 }
             }
 
-            timeout(-1); // Reset timeout to blocking mode
-
             return;
         }
     }
 
     printw("Invalid username or password.\n");
 }
+
 
 
 void resetPassword() {
@@ -1228,4 +1242,3 @@ int main() {
     endwin(); // End the ncurses mode
     return 0;
 }
-
