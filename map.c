@@ -29,6 +29,7 @@
 #define COLOR_MAGENTA 5
 
 int player_color = COLOR_YELLOW; // رنگ پیش‌فرض بازیکن
+int selected_music = 0; // موزیک انتخابی، 0: هیچ موزیکی انتخاب نشده
 
 int placed_magic_food = 0; // شمارش غذای جادویی قرار داده شده
 
@@ -147,7 +148,34 @@ void settings() {
             getch(); // Wait for user to press a key
             break;
     }
+
+    clear();
+    printw("Select your background music:\n");
+    printw("1. Music 1\n");
+    printw("2. Music 2\n");
+    printw("3. Music 3\n");
+    printw("Enter your choice: ");
+    refresh();
+
+    choice = getch() - '0';
+    switch (choice) {
+        case 1:
+            selected_music = 1;
+            break;
+        case 2:
+            selected_music = 2;
+            break;
+        case 3:
+            selected_music = 3;
+            break;
+        default:
+            printw("Invalid choice. No music selected.\n");
+            selected_music = 0;
+            getch(); // Wait for user to press a key
+            break;
+    }
 }
+
 
 void add_food_to_room(Room *room) {
     for (int i = 0; i < 1; i++) { // Add 1 food per room
@@ -942,6 +970,29 @@ void move_player(char input) {
     }
 }
 
+void play_music() {
+    switch (selected_music) {
+        case 1:
+            system("mpg123 -q music1.mp3 &");
+            break;
+        case 2:
+            system("mpg123 -q music2.mp3 &");
+            break;
+        case 3:
+            system("mpg123 -q music3.mp3 &");
+            break;
+        case 4:
+            system("mpg123 -q my_music.mp3 &"); // پخش موزیک جدید
+            break;
+        default:
+            break; // هیچ موزیکی انتخاب نشده
+    }
+}
+
+void stop_music() {
+    system("pkill mpg123"); // متوقف کردن موزیک
+}
+
 
 void loginUser() {
     char username[USERNAME_LENGTH];
@@ -1008,6 +1059,8 @@ void loginUser() {
                 update_seen_tiles();
             }
 
+            play_music(); // پخش موزیک انتخاب شده
+
             timeout(100); // Set a timeout for getch to make the game responsive
 
             char input;
@@ -1018,7 +1071,11 @@ void loginUser() {
                 printw("Press P to save game.\n");
                 refresh();
                 input = getch();
-                if (tolower(input) == 'g') break;
+                if (tolower(input) == 'g') {
+                stop_music();
+                break;
+                }
+                
                 if (tolower(input) == 'p') {
                     game_state.player_x = player_x;
                     game_state.player_y = player_y;
@@ -1050,6 +1107,7 @@ void loginUser() {
 
     printw("Invalid username or password.\n");
 }
+
 
 void resetPassword() {
     char email[EMAIL_LENGTH];
@@ -1104,6 +1162,7 @@ void loadUsers() {
         fclose(file);
     }
 }
+
 int main() {
     initscr(); // Initialize the ncurses screen
     noecho();  // Disable echoing of input characters
@@ -1126,7 +1185,8 @@ int main() {
         printw("4. Reset password\n");
         printw("5. Recover forgotten password\n");
         printw("6. Settings\n"); // افزودن گزینه تنظیمات
-        printw("7. Exit\n");
+        printw("7. Stop Music\n"); // افزودن گزینه توقف موزیک
+        printw("8. Exit\n");
         printw("Enter your choice: ");
         refresh(); // Refresh to show the menu
 
@@ -1154,14 +1214,18 @@ int main() {
                 settings(); // فراخوانی تنظیمات
                 break;
             case 7:
+                stop_music(); // فراخوانی توقف موزیک
+                break;
+            case 8:
                 printw("Exiting program.\n");
                 break;
             default:
                 printw("Invalid choice.\n");
                 getch(); // Wait for user to press a key
         }
-    } while (choice != 7);
+    } while (choice != 8);
 
     endwin(); // End the ncurses mode
     return 0;
 }
+
