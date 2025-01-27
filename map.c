@@ -105,7 +105,16 @@ typedef struct {
     Room rooms[MAX_ROOMS];
     int room_count;
 } GameState;
-
+void save_game(const char* filename, GameState* game_state) {
+    FILE *file = fopen(filename, "wb");
+    if (file) {
+        fwrite(game_state, sizeof(GameState), 1, file);
+        fclose(file);
+        printw("Game saved successfully.\n");
+    } else {
+        printw("Error: Unable to save the game.\n");
+    }
+}
 void add_save_file_to_list(const char* filename) {
     FILE *file = fopen(SAVE_LIST_FILE, "a");
     if (file) {
@@ -240,17 +249,18 @@ void add_magic_food_to_room(Room *room) {
 }
 
 
-void save_game(const char* filename, GameState* game_state) {
-    FILE *file = fopen(filename, "wb");
+void saveUsers() {
+    FILE *file = fopen("users.txt", "w");
     if (file) {
-        fwrite(game_state, sizeof(GameState), 1, file);
+        for (int i = 0; i < userCount; i++) {
+            fprintf(file, "%s %s %s\n", users[i].username, users[i].password, users[i].email);
+        }
         fclose(file);
-        printw("Game saved successfully as %s.\n", filename);
     } else {
-        printw("Error saving game.\n");
+        printw("Error: Unable to save users.\n");
     }
-    refresh();
 }
+
 
 int load_game(const char* filename, GameState* game_state) {
     FILE *file = fopen(filename, "rb");
@@ -263,15 +273,15 @@ int load_game(const char* filename, GameState* game_state) {
         return 0; // هیچ بازی ذخیره‌شده‌ای یافت نشد، شروع بازی جدید
     }
 }
-
-void generateRandomPassword(char *password) {
-    const char charset[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    int length = 8; // Password length
-    for (int i = 0; i < length; i++) {
-        password[i] = charset[rand() % (sizeof(charset) - 1)];
+int findUser(const char* username) {
+    for (int i = 0; i < userCount; i++) {
+        if (strcmp(users[i].username, username) == 0) {
+            return i;
+        }
     }
-    password[length] = '\0';
+    return -1;
 }
+
 
 int isEmailValid(const char *email) {
     const char *at = strchr(email, '@');
@@ -287,75 +297,127 @@ int isUsernameUnique(const char *username) {
     }
     return 1; // Username is unique
 }
-
 void createUser() {
-    if (userCount >= MAX_USERS) {
-        printw("Maximum number of users reached.\n");
-        return;
-    }
-
-    User newUser;
-    printw("Enter username: ");
-    move(LINES - 1, 16);
-    echo();
-    scanw("%s", newUser.username);
-    noecho();
-
-    if (!isUsernameUnique(newUser.username)) {
-        printw("Username already taken. Please choose another one.\n");
-        return;
-    }
-
-    printw("Enter password: ");
-    move(LINES - 1, 15);
-    echo();
-    scanw("%s", newUser.password);
-    noecho();
-
-    if (strlen(newUser.password) < 7) {
-        printw("Password must be at least 7 characters long.\n");
-        return;
-    }
-
-    printw("Enter email: ");
-    move(LINES - 1, 13);
-    echo();
-    scanw("%s", newUser.email);
-    noecho();
-
-    if (!isEmailValid(newUser.email)) {
-        printw("Invalid email address. Please try again.\n");
-        return;
-    }
-
-    users[userCount++] = newUser;
-    printw("New user created successfully.\n");
-
-    // Save the user data to file
-    FILE *file = fopen(FILENAME, "ab");
-    if (file) {
-        fwrite(&newUser, sizeof(User), 1, file);
-        fclose(file);
-    } else {
-        printw("Error saving user data.\n");
-    }
-}
-
-void generatePasswordForUser() {
     char username[USERNAME_LENGTH];
-    printw("Enter username: ");
-    scanw("%s", username);
+    char password[PASSWORD_LENGTH];
+    char email[EMAIL_LENGTH];
+    int has_uppercase = 0; // برای بررسی وجود حرف بزرگ
 
+    clear(); // پاک کردن صفحه برای شروع
+    printw("Enter new username: ");
+    echo();
+    scanw("%s", username);
+    noecho();
+
+    // Check if username already exists
     for (int i = 0; i < userCount; i++) {
         if (strcmp(users[i].username, username) == 0) {
-            generateRandomPassword(users[i].password);
-            printw("New password: %s\n", users[i].password);
+            clear(); // پاک کردن صفحه برای نمایش پیام
+            printw("Username already taken. Please choose another one.\n");
+            refresh(); // تازه‌سازی صفحه برای نمایش پیام
+            getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
             return;
         }
     }
 
-    printw("User not found.\n");
+    printw("Enter new password (at least 7 characters long and must contain at least one uppercase letter): ");
+    echo();
+    scanw("%s", password);
+    noecho();
+
+    // Check if password is at least 7 characters long and contains at least one uppercase letter
+    if (strlen(password) < 7) {
+        clear(); // پاک کردن صفحه برای نمایش پیام
+        printw("Password must be at least 7 characters long.\n");
+        refresh(); // تازه‌سازی صفحه برای نمایش پیام
+        getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
+        return;
+    }
+
+    for (int i = 0; i < strlen(password); i++) {
+        if (isupper(password[i])) {
+            has_uppercase = 1;
+            break;
+        }
+    }
+
+    if (!has_uppercase) {
+        clear(); // پاک کردن صفحه برای نمایش پیام
+        printw("Password must contain at least one uppercase letter.\n");
+        refresh(); // تازه‌سازی صفحه برای نمایش پیام
+        getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
+        return;
+    }
+
+    printw("Enter email address: ");
+    echo();
+    scanw("%s", email);
+    noecho();
+
+    // Validate email address (simple validation for example purposes)
+    if (!strchr(email, '@') || !strchr(email, '.')) {
+        clear(); // پاک کردن صفحه برای نمایش پیام
+        printw("Invalid email address. Please try again.\n");
+        refresh(); // تازه‌سازی صفحه برای نمایش پیام
+        getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
+        return;
+    }
+
+    strcpy(users[userCount].username, username);
+    strcpy(users[userCount].password, password);
+    strcpy(users[userCount].email, email);
+    userCount++;
+    
+    saveUsers(); // ذخیره کاربران
+    
+    clear(); // پاک کردن صفحه برای نمایش پیام
+    printw("New user created successfully.\n");
+    refresh(); // تازه‌سازی صفحه برای نمایش پیام
+    getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
 }
+
+
+void generatePassword(char* password) {
+    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    size_t length = 8;
+
+    for (size_t i = 0; i < length; i++) {
+        int key = rand() % (int)(sizeof(charset) - 1);
+        password[i] = charset[key];
+    }
+    password[length] = '\0';
+}
+
+void generatePasswordForUser() {
+    char username[USERNAME_LENGTH];
+    char password[PASSWORD_LENGTH];
+
+    clear(); // پاک کردن صفحه برای شروع
+    printw("Enter the username: ");
+    echo();
+    scanw("%s", username);
+    noecho();
+
+    int userIndex = findUser(username);
+    if (userIndex == -1) {
+        clear(); // پاک کردن صفحه برای نمایش پیام
+        printw("Error: Username not found.\n");
+        refresh(); // تازه‌سازی صفحه برای نمایش پیام
+        getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
+        return;
+    }
+
+    generatePassword(password);
+
+    strcpy(users[userIndex].password, password);
+    saveUsers(); // ذخیره کاربران
+
+    clear(); // پاک کردن صفحه برای نمایش پیام
+    printw("New password generated successfully for user %s: %s\n", username, password);
+    refresh(); // تازه‌سازی صفحه برای نمایش پیام
+    getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
+}
+
 
 void initialize_map() {
     for (int i = 0; i < HEIGHT; i++) {
@@ -1047,6 +1109,7 @@ void loginUser() {
             scanw(" %c", &load_or_new);
 
             if (tolower(load_or_new) == 'l') {
+                clear(); // پاک کردن صفحه برای نمایش لیست بازی‌های ذخیره شده
                 load_save_list(); // نمایش لیست بازی‌های ذخیره شده
                 printw("Enter the name of the save file to load (e.g., save1, save2, ...): ");
                 scanw("%s", filename);
@@ -1093,10 +1156,18 @@ void loginUser() {
                 printw("Use W/A/S/D to move horizontally and vertically\n");
                 printw("Use Q/E/Z/C to move diagonally\nPress G to quit.\n");
                 printw("Press P to save game.\n");
+                printw("Press O to open settings.\n"); // افزودن پیام برای دسترسی به تنظیمات
                 refresh();
                 input = getch();
+                if (tolower(input) == 'o') { // بررسی کلید o
+                    stop_music(); // متوقف کردن موزیک در زمان نمایش تنظیمات
+                    flushinp(); // پاک کردن بافر ورودی‌ها
+                    settings(); // فراخوانی منوی تنظیمات
+                    play_music(); // پخش مجدد موزیک پس از انجام تنظیمات
+                }
                 if (tolower(input) == 'g') break;
                 if (tolower(input) == 'p') {
+                    flushinp(); // پاک کردن بافر ورودی‌ها قبل از نمایش پیام
                     printw("Enter a name for your save file (e.g., save1, save2, ...): ");
                     move(LINES - 1, 0);
                     echo();
@@ -1104,12 +1175,17 @@ void loginUser() {
                     noecho();
                     add_save_file_to_list(filename); // افزودن نام فایل به لیست ذخیره‌ها
                     save_game(filename, &game_state);
+                    clear(); // پاک کردن صفحه برای نمایش پیام
                     printw("Game saved successfully as %s.\n", filename);
+                    refresh(); // تازه‌سازی صفحه برای نمایش پیام
                     getch(); // Wait for user to press a key to acknowledge saving
                 }
                 move_player(input);
                 if (player_hp <= 0) {
+                    clear(); // پاک کردن صفحه برای نمایش پیام
                     printw("Game Over! You ran out of HP.\n");
+                    refresh(); // تازه‌سازی صفحه برای نمایش پیام
+                    getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
                     break;
                 }
             }
@@ -1118,62 +1194,100 @@ void loginUser() {
         }
     }
 
+    clear(); // پاک کردن صفحه برای نمایش پیام
     printw("Invalid username or password.\n");
+    refresh(); // تازه‌سازی صفحه برای نمایش پیام
+    getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
 }
-
-
 
 void resetPassword() {
-    char email[EMAIL_LENGTH];
-    printw("Enter email: ");
-    scanw("%s", email);
+    char username[USERNAME_LENGTH];
+    char oldPassword[PASSWORD_LENGTH];
+    char newPassword[PASSWORD_LENGTH];
 
-    for (int i = 0; i < userCount; i++) {
-        if (strcmp(users[i].email, email) == 0) {
-            generateRandomPassword(users[i].password);
-            printw("New password has been sent: %s\n", users[i].password);
-            return;
-        }
+    clear(); // پاک کردن صفحه برای شروع
+    printw("Enter your username: ");
+    echo();
+    scanw("%s", username);
+    noecho();
+
+    printw("Enter your old password: ");
+    echo();
+    scanw("%s", oldPassword);
+    noecho();
+
+    int userIndex = findUser(username);
+    if (userIndex == -1 || strcmp(users[userIndex].password, oldPassword) != 0) {
+        clear(); // پاک کردن صفحه برای نمایش پیام
+        printw("Error: Invalid username or password.\n");
+        refresh(); // تازه‌سازی صفحه برای نمایش پیام
+        getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
+        return;
     }
 
-    printw("Email not found.\n");
+    printw("Enter your new password: ");
+    echo();
+    scanw("%s", newPassword);
+    noecho();
+
+    strcpy(users[userIndex].password, newPassword);
+    saveUsers(); // ذخیره کاربران
+
+    clear(); // پاک کردن صفحه برای نمایش پیام
+    printw("Password reset successfully.\n");
+    refresh(); // تازه‌سازی صفحه برای نمایش پیام
+    getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
 }
 
+
 void recoverPassword() {
+    char username[USERNAME_LENGTH];
     char email[EMAIL_LENGTH];
-    printw("Enter your registered email: ");
+
+    clear(); // پاک کردن صفحه برای شروع
+    printw("Enter your username: ");
+    echo();
+    scanw("%s", username);
+    noecho();
+
+    printw("Enter your email: ");
+    echo();
     scanw("%s", email);
+    noecho();
 
+    // Check if username and email match
+    int userIndex = -1;
     for (int i = 0; i < userCount; i++) {
-        if (strcmp(users[i].email, email) == 0) {
-            char newPassword[PASSWORD_LENGTH];
-            generateRandomPassword(newPassword);
-            strcpy(users[i].password, newPassword);
-            printw("Your new password is: %s\n", newPassword);
-
-            // Update user data in file
-            FILE *file = fopen(FILENAME, "wb");
-            if (file) {
-                fwrite(users, sizeof(User), userCount, file);
-                fclose(file);
-            } else {
-                printw("Error updating user data in file.\n");
-            }
-
-            return;
+        if (strcmp(users[i].username, username) == 0 && strcmp(users[i].email, email) == 0) {
+            userIndex = i;
+            break;
         }
     }
 
-    printw("Email not found. Please try again.\n");
+    if (userIndex == -1) {
+        clear(); // پاک کردن صفحه برای نمایش پیام
+        printw("Error: Username or email not found.\n");
+        refresh(); // تازه‌سازی صفحه برای نمایش پیام
+        getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
+        return;
+    }
+
+    clear(); // پاک کردن صفحه برای نمایش پیام
+    printw("Your password is: %s\n", users[userIndex].password);
+    refresh(); // تازه‌سازی صفحه برای نمایش پیام
+    getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
 }
 
 void loadUsers() {
-    FILE *file = fopen(FILENAME, "rb");
+    FILE *file = fopen("users.txt", "r");
     if (file) {
-        while (fread(&users[userCount], sizeof(User), 1, file)) {
+        userCount = 0; // Reset user count before loading
+        while (fscanf(file, "%s %s %s", users[userCount].username, users[userCount].password, users[userCount].email) != EOF) {
             userCount++;
         }
         fclose(file);
+    } else {
+        printw("No users found. You may need to create a new user.\n");
     }
 }
 
@@ -1231,11 +1345,16 @@ int main() {
                 stop_music(); // فراخوانی توقف موزیک
                 break;
             case 8:
+                clear(); // پاک کردن صفحه برای نمایش پیام
                 printw("Exiting program.\n");
+                refresh(); // تازه‌سازی صفحه برای نمایش پیام
+                getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
                 break;
             default:
+                clear(); // پاک کردن صفحه برای نمایش پیام
                 printw("Invalid choice.\n");
-                getch(); // Wait for user to press a key
+                refresh(); // تازه‌سازی صفحه برای نمایش پیام
+                getch(); // منتظر ماندن برای فشار دادن کلید توسط کاربر
         }
     } while (choice != 8);
 
