@@ -207,7 +207,7 @@ void move_firemonster(Monster *firemonster) {
     int new_x = firemonster->x + dx;
     int new_y = firemonster->y + dy;
 
-    if (map[new_y][new_x] == ' ' || map[new_y][new_x] == '.' || map[new_y][new_x] == 'f' || map[new_y][new_x] == 'j' || map[new_y][new_x] == 'm') {
+    if ( map[new_y][new_x] == ' ' || map[new_y][new_x] == '.' || map[new_y][new_x] == 'f' || map[new_y][new_x] == 'j' || map[new_y][new_x] == 'm') {
         map[firemonster->y][firemonster->x] = '.'; // پاک کردن محل قبلی شیطان
         firemonster->x = new_x;
         firemonster->y = new_y;
@@ -230,8 +230,9 @@ void activate_firemonter() {
         if (player_x >= rooms[firemonsters[i].room_index].x && player_x < rooms[firemonsters[i].room_index].x + rooms[firemonsters[i].room_index].width &&
             player_y >= rooms[firemonsters[i].room_index].y && player_y < rooms[firemonsters[i].room_index].y + rooms[firemonsters[i].room_index].height) {
             firemonsters[i].active = 1; // فعال کردن شیطان در صورت ورود بازیکن به اتاق
-        } else {
-            firemonsters[i].active = 0; // غیرفعال کردن شیطان در صورت خروج بازیکن از اتاق
+        } 
+        else {
+           firemonsters[i].active = 0; // غیرفعال کردن شیطان در صورت خروج بازیکن از اتاق
         }
     }
 }
@@ -667,8 +668,8 @@ void add_columns_to_room(Room *room) {
 }
 
 int create_room(Room *room) {
-    room->width = 4 + rand() % 22; // Room width (4 to 25)
-    room->height = 4 + rand() % 4; // Room height (4 to 7)
+    room->width = 4 + rand() % 30; // Room width (4 to 25)
+    room->height = 4 + rand() % 10; // Room height (4 to 7)
     room->x = 1 + rand() % (WIDTH - room->width - 1); // Avoid map border
     room->y = 1 + rand() % (HEIGHT - room->height - 1);
     
