@@ -186,8 +186,36 @@ void update_demons() {
     }
 }
 
+void attack_with_mace() {
+    int directions[8][2] = {
+        {-1, -1}, {-1, 0}, {-1, 1}, // بالا چپ، بالا، بالا راست
+        {0, -1},          {0, 1},   // چپ، راست
+        {1, -1}, {1, 0}, {1, 1}     // پایین چپ، پایین، پایین راست
+    };
 
+    for (int i = 0; i < 8; i++) {
+        int new_x = player_x + directions[i][0];
+        int new_y = player_y + directions[i][1];
 
+        if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
+            for (int j = 0; j < demon_count; j++) {
+                if (demons[j].x == new_x && demons[j].y == new_y) {
+                    demons[j].hp -= 5; // آسیب به HP شیطان
+                    if (demons[j].hp <= 0) {
+                        map[demons[j].y][demons[j].x] = '.'; // حذف شیطان از نقشه
+                        demons[j] = demons[demon_count - 1]; // جایگزین کردن شیطان حذف شده با آخرین شیطان در آرایه
+                        demon_count--; // کاهش شمارنده شیاطین
+                        snprintf(current_message, sizeof(current_message), "You killed a demon!");
+                    } else {
+                        snprintf(current_message, sizeof(current_message), "You hit a demon! Its HP is now %d.", demons[j].hp);
+                    }
+                }
+            }
+        }
+    }
+
+    refresh(); // Refresh to show the message
+}
 
 
 
@@ -820,6 +848,11 @@ void add_to_inventory(const char* item_name, const char* item_type) {
         printw("Inventory is full. Cannot add more items.\n");
     }
 }
+// افزودن گرز به inventory بازیکن در ابتدای بازی
+void add_mace_to_inventory() {
+    add_to_inventory("Mace", "Weapon");
+}
+
 void show_inventory() {
     clear();
     printw("Inventory:\n");
@@ -965,6 +998,8 @@ void regenerate_map() {
 
 
 void move_player(char input) {
+    int dx = 0, dy = 0; // تعریف متغیرهای dx و dy
+
     if (tolower(input) == 'i') {
         if (inventory_open) {
             clear();
@@ -981,7 +1016,10 @@ void move_player(char input) {
         return;
     }
 
-    int dx = 0, dy = 0; // تعریف متغیرهای dx و dy
+    if (tolower(input) == 'h') { // فرض بر این که کلید 'h' برای حمله با گرز انتخاب شده است
+        attack_with_mace();
+        return;
+    }
 
     // پاک کردن پیام قبلی
     //clear_message(); 
@@ -1152,16 +1190,14 @@ void move_player(char input) {
             snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
         }
 
-
-
-
-    activate_demons(); // فعال کردن شیاطین در صورت ورود بازیکن به اتاق
-    update_demons(); // بروزرسانی موقعیت شیاطین
         // چاپ پیام فعلی
         mvprintw(HEIGHT, 0, "%s", current_message);
 
         refresh(); // Refresh to show the message
     }
+
+    activate_demons(); // فعال کردن شیاطین در صورت ورود بازیکن به اتاق
+    update_demons(); // بروزرسانی موقعیت شیاطین
 }
 
 void play_music() {
@@ -1270,6 +1306,9 @@ void loginUser() {
                 player_y = rooms[hero_room].y + 1 + rand() % (rooms[hero_room].height - 2);
                 map[player_y][player_x] = '@';
 
+                // اضافه کردن گرز به موجودی بازیکن
+                add_mace_to_inventory();
+
                 update_seen_tiles();
             }
 
@@ -1282,6 +1321,7 @@ void loginUser() {
                 printw("Use Q/E/Z/C to move diagonally\nPress G to quit.\n");
                 printw("Press P to save game.\n");
                 printw("Press O to open settings.\n");
+                printw("Press H to attack with mace.\n"); // راهنمایی برای استفاده از گرز
                 refresh();
                 input = getch();
                 if (tolower(input) == 'o') {
