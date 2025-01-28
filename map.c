@@ -28,18 +28,25 @@
 #define COLOR_BLUE 4
 #define COLOR_MAGENTA 5
 #define SAVE_LIST_FILE "save_list.txt" // فایل لیست نام‌های ذخیره
+#define TOTAL_DEMONS 10 // تعداد کل شیاطین
 
 
 int player_color = COLOR_YELLOW; // رنگ پیش‌فرض بازیکن
 int selected_music = 0; // موزیک انتخابی، 0: هیچ موزیکی انتخاب نشده
-
 int placed_magic_food = 0; // شمارش غذای جادویی قرار داده شده
-
 int placed_super_food = 0; // شمارش غذای اعلا قرار داده شده
 int magic_food_active = 0; // 0: غیرفعال، 1: فعال
 int magic_food_moves = 0; // تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
-
 int placed_food = 0; // شمارش غذای قرار داده شده
+typedef struct {
+    int x, y;        // موقعیت هیولا
+    int hp;          // سلامتی هیولا
+    int active;      // آیا هیولا فعال است یا خیر
+} Monster;
+
+
+Monster demons[TOTAL_DEMONS];
+int demon_count = 0;
 
 typedef struct {
     char name[ITEM_NAME_LENGTH];
@@ -105,6 +112,78 @@ typedef struct {
     Room rooms[MAX_ROOMS];
     int room_count;
 } GameState;
+
+void add_demon_to_room(Room *room) {
+    if (demon_count < MAX_ROOMS) {
+        Monster demon;
+        demon.x = room->x + 1 + rand() % (room->width - 2);
+        demon.y = room->y + 1 + rand() % (room->height - 2);
+        demon.hp = 5;
+        demon.active = 0; // در ابتدا غیرفعال است
+
+        demons[demon_count++] = demon;
+        map[demon.y][demon.x] = 'D'; // اضافه کردن شیطان به نقشه
+    }
+}
+void move_demon(Monster *demon) {
+    if (!demon->active) return;
+
+    int dx = 0, dy = 0;
+    if (player_x > demon->x) dx = 1;
+    if (player_x < demon->x) dx = -1;
+    if (player_y > demon->y) dy = 1;
+    if (player_y < demon->y) dy = -1;
+
+    int new_x = demon->x + dx;
+    int new_y = demon->y + dy;
+
+    if (map[new_y][new_x] == ' ' || map[new_y][new_x] == '.') {
+        map[demon->y][demon->x] = '.'; // پاک کردن محل قبلی شیطان
+        demon->x = new_x;
+        demon->y = new_y;
+        map[new_y][new_x] = 'D'; // جایگذاری شیطان در محل جدید
+    }
+}
+
+void activate_demons() {
+    for (int i = 0; i < demon_count; i++) {
+        if (map[player_y][player_x] == map[demons[i].y][demons[i].x] && !demons[i].active) {
+            demons[i].active = 1;
+        }
+    }
+}
+
+void update_demons() {
+    for (int i = 0; i < demon_count; i++) {
+        move_demon(&demons[i]);
+        if (abs(player_x - demons[i].x) <= 1 && abs(player_y - demons[i].y) <= 1) {
+            player_hp -= 3; // کاهش HP بازیکن
+            snprintf(current_message, sizeof(current_message), "A demon attacked you! Your HP is now %d.", player_hp);
+        }
+    }
+}
+
+void add_demons_to_rooms(Room *rooms, int room_count) {
+    for (int i = 0; i < TOTAL_DEMONS; i++) {
+        int room_index = rand() % room_count;
+        Monster demon;
+        demon.x = rooms[room_index].x + 1 + rand() % (rooms[room_index].width - 2);
+        demon.y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
+        demon.hp = 5;
+        demon.active = 0; // در ابتدا غیرفعال است
+
+        demons[demon_count++] = demon;
+        map[demon.y][demon.x] = 'D'; // اضافه کردن شیطان به نقشه
+    }
+}
+
+
+
+
+
+
+
+
 void save_game(const char* filename, GameState* game_state) {
     FILE *file = fopen(filename, "wb");
     if (file) {
@@ -850,6 +929,12 @@ void regenerate_map() {
     // Place special characters ">" and "<"
     place_single_special_characters(rooms, room_count);
 
+
+    // اضافه کردن شیطان به اتاق‌ها
+    add_demons_to_rooms(rooms, room_count);
+    activate_demons();
+    update_demons();
+    
     // Place hero in a random room
     int hero_room = rand() % room_count;
     player_x = rooms[hero_room].x + 1 + rand() % (rooms[hero_room].width - 2);
@@ -1052,6 +1137,9 @@ void move_player(char input) {
             snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
         }
 
+
+    activate_demons(); // فعال کردن شیاطین در صورت ورود بازیکن به اتاق
+    update_demons(); // بروزرسانی موقعیت شیاطین
         // چاپ پیام فعلی
         mvprintw(HEIGHT, 0, "%s", current_message);
 
