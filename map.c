@@ -840,6 +840,13 @@ void add_black_gold_to_room(Room *room) {
     }
 }
 void add_to_inventory(const char* item_name, const char* item_type) {
+    for (int i = 0; i < inventory_count; i++) {
+        if (strcmp(inventory[i].name, item_name) == 0 && strcmp(inventory[i].type, item_type) == 0) {
+            // آیتم قبلاً در اینونتوری وجود دارد، نیازی به افزودن مجدد نیست
+            return;
+        }
+    }
+
     if (inventory_count < MAX_INVENTORY_ITEMS) {
         strncpy(inventory[inventory_count].name, item_name, ITEM_NAME_LENGTH - 1);
         strncpy(inventory[inventory_count].type, item_type, ITEM_NAME_LENGTH - 1);
@@ -848,7 +855,7 @@ void add_to_inventory(const char* item_name, const char* item_type) {
         printw("Inventory is full. Cannot add more items.\n");
     }
 }
-// افزودن گرز به inventory بازیکن در ابتدای بازی
+
 void add_mace_to_inventory() {
     add_to_inventory("Mace", "Weapon");
 }
@@ -856,9 +863,23 @@ void add_mace_to_inventory() {
 void show_inventory() {
     clear();
     printw("Inventory:\n");
+
+    // نمایش سلاح‌ها
+    printw("Weapons:\n");
     for (int i = 0; i < inventory_count; i++) {
-        printw("%d. %s (%s)\n", i + 1, inventory[i].name, inventory[i].type);
+        if (strcmp(inventory[i].type, "Weapon") == 0) {
+            printw("%d. %s (%s)\n", i + 1, inventory[i].name, inventory[i].type);
+        }
     }
+
+    // نمایش غذاها
+    printw("Consumables:\n");
+    for (int i = 0; i < inventory_count; i++) {
+        if (strcmp(inventory[i].type, "Consumable") == 0) {
+            printw("%d. %s (%s)\n", i + 1, inventory[i].name, inventory[i].type);
+        }
+    }
+
     printw("Press the number of the item to use it, or press 'i' to close the inventory and return to the game.\n");
     refresh();
 
@@ -1223,6 +1244,7 @@ void stop_music() {
     system("pkill mpg123"); // متوقف کردن موزیک
 }
 
+
 void loginUser() {
     char username[USERNAME_LENGTH];
     char password[PASSWORD_LENGTH];
@@ -1371,7 +1393,6 @@ void loginUser() {
     refresh();
     getch();
 }
-
 
 void resetPassword() {
     char username[USERNAME_LENGTH];
