@@ -206,6 +206,7 @@ void attack_with_mace() {
                         demons[j] = demons[demon_count - 1]; // جایگزین کردن شیطان حذف شده با آخرین شیطان در آرایه
                         demon_count--; // کاهش شمارنده شیاطین
                         snprintf(current_message, sizeof(current_message), "You killed a demon!");
+                        player_exp += 10;
                     } else {
                         snprintf(current_message, sizeof(current_message), "You hit a demon! Its HP is now %d.", demons[j].hp);
                     }
@@ -276,6 +277,10 @@ void init_colors() {
         // ... سایر رنگ‌ها
     }
 }
+void stop_music() {
+    system("pkill mpg123"); // متوقف کردن موزیک
+}
+
 void settings() {
     clear();
     printw("Select your player color:\n");
@@ -316,6 +321,7 @@ void settings() {
     printw("1. Music 1\n");
     printw("2. Music 2\n");
     printw("3. Music 3\n");
+    printw("4.stop the music\n");
     printw("Enter your choice: ");
     refresh();
 
@@ -330,6 +336,10 @@ void settings() {
         case 3:
             selected_music = 3;
             break;
+        case 4:
+            stop_music();
+            break;
+            
         default:
             printw("Invalid choice. No music selected.\n");
             selected_music = 0;
@@ -1240,10 +1250,6 @@ void play_music() {
     }
 }
 
-void stop_music() {
-    system("pkill mpg123"); // متوقف کردن موزیک
-}
-
 
 void loginUser() {
     char username[USERNAME_LENGTH];
@@ -1352,7 +1358,9 @@ void loginUser() {
                     settings();
                     play_music();
                 }
-                if (tolower(input) == 'g') break;
+                if (tolower(input) == 'g') {
+                    stop_music();
+                    break;}
                 if (tolower(input) == 'p') {
                     flushinp();
                     printw("Enter a name for your save file (e.g., save1, save2, ...): ");
@@ -1378,8 +1386,10 @@ void loginUser() {
                 if (player_hp <= 0) {
                     clear();
                     printw("Game Over! You ran out of HP.\n");
+                    
                     refresh();
                     getch();
+                    stop_music();
                     break;
                 }
             }
