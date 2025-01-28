@@ -29,7 +29,7 @@
 #define COLOR_MAGENTA 5
 #define SAVE_LIST_FILE "save_list.txt" // فایل لیست نام‌های ذخیره
 #define TOTAL_DEMONS 10 // تعداد کل شیاطین
-
+#define TOTAL_FIRE 5
 
 int player_color = COLOR_YELLOW; // رنگ پیش‌فرض بازیکن
 int selected_music = 0; // موزیک انتخابی، 0: هیچ موزیکی انتخاب نشده
@@ -48,7 +48,8 @@ typedef struct {
 
 Monster demons[TOTAL_DEMONS];
 int demon_count = 0;
-
+Monster firemonsters[TOTAL_FIRE];
+int fire_count = 0;
 typedef struct {
     char name[ITEM_NAME_LENGTH];
     char type[ITEM_NAME_LENGTH]; // نوع آیتم مانند غذا، اسلحه، طلسم
@@ -79,6 +80,7 @@ typedef struct {
     int width, height; // Dimensions
     int door_x, door_y; // Door position
     int has_demon;
+    int has_firemonster;
 } Room;
 
 char hit_message[25] = "You hit a column!";
@@ -143,6 +145,36 @@ void add_demons_to_rooms(Room *rooms, int room_count) {
         rooms[room_index].has_demon = 1; // علامت‌گذاری اتاق به عنوان اتاق دارای شیطان
     }
 }
+void add_firemonster_to_rooms(Room *rooms, int room_count) {
+    for (int i = 0; i < TOTAL_FIRE; i++) {
+        int room_index;
+        int attempts = 0; // شمارنده تلاش‌ها برای جلوگیری از حلقه بی‌نهایت
+        do {
+            room_index = rand() % room_count;
+            attempts++;
+        } while (rooms[room_index].has_firemonster && attempts < 100); // اتاق جدید انتخاب می‌شود تا وقتی که شیطان در آن اتاق نباشد
+
+        if (attempts >= 100) {
+            // در صورت نبود اتاق‌های خالی، شیطان جدید اضافه نمی‌شود
+            continue;
+        }
+
+        Monster firemonster;
+        do {
+            firemonster.x = rooms[room_index].x + 1 + rand() % (rooms[room_index].width - 2);
+            firemonster.y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
+        } while (map[firemonster.y][firemonster.x] != '.'); // اطمینان از قرارگیری شیطان در داخل اتاق
+
+        firemonster.hp = 10;
+        firemonster.active = 0; // در ابتدا غیرفعال است
+        firemonster.room_index = room_index; // شاخص اتاق
+
+        firemonsters[fire_count++] = firemonster;
+        map[firemonster.y][firemonster.x] = 'F'; // اضافه کردن شیطان به نقشه
+        rooms[room_index].has_firemonster = 1; // علامت‌گذاری اتاق به عنوان اتاق دارای شیطان
+    }
+}
+
 
 void move_demon(Monster *demon) {
     if (!demon->active) return;
@@ -163,7 +195,25 @@ void move_demon(Monster *demon) {
         map[new_y][new_x] = 'D'; // جایگذاری شیطان در محل جدید
     }
 }
+void move_firemonster(Monster *firemonster) {
+    if (!firemonster->active) return;
 
+    int dx = 0, dy = 0;
+    if (player_x > firemonster->x) dx = 1;
+    if (player_x < firemonster->x) dx = -1;
+    if (player_y > firemonster->y) dy = 1;
+    if (player_y < firemonster->y) dy = -1;
+
+    int new_x = firemonster->x + dx;
+    int new_y = firemonster->y + dy;
+
+    if (map[new_y][new_x] == ' ' || map[new_y][new_x] == '.' || map[new_y][new_x] == 'f' || map[new_y][new_x] == 'j' || map[new_y][new_x] == 'm') {
+        map[firemonster->y][firemonster->x] = '.'; // پاک کردن محل قبلی شیطان
+        firemonster->x = new_x;
+        firemonster->y = new_y;
+        map[new_y][new_x] = 'F'; // جایگذاری شیطان در محل جدید
+    }
+}
 
 void activate_demons() {
     for (int i = 0; i < demon_count; i++) {
@@ -175,13 +225,32 @@ void activate_demons() {
         }
     }
 }
+void activate_firemonter() {
+    for (int i = 0; i < fire_count; i++) {
+        if (player_x >= rooms[firemonsters[i].room_index].x && player_x < rooms[firemonsters[i].room_index].x + rooms[firemonsters[i].room_index].width &&
+            player_y >= rooms[firemonsters[i].room_index].y && player_y < rooms[firemonsters[i].room_index].y + rooms[firemonsters[i].room_index].height) {
+            firemonsters[i].active = 1; // فعال کردن شیطان در صورت ورود بازیکن به اتاق
+        } else {
+            firemonsters[i].active = 0; // غیرفعال کردن شیطان در صورت خروج بازیکن از اتاق
+        }
+    }
+}
 
 void update_demons() {
     for (int i = 0; i < demon_count; i++) {
         move_demon(&demons[i]);
         if (abs(player_x - demons[i].x) <= 1 && abs(player_y - demons[i].y) <= 1) {
-            player_hp -= 3; // کاهش HP بازیکن
+            player_hp -= 2; // کاهش HP بازیکن
             snprintf(current_message, sizeof(current_message), "A demon attacked you! Your HP is now %d.", player_hp);
+        }
+    }
+}
+void update_firemonster() {
+    for (int i = 0; i < fire_count; i++) {
+        move_firemonster(&firemonsters[i]);
+        if (abs(player_x - firemonsters[i].x) <= 1 && abs(player_y - firemonsters[i].y) <= 1) {
+            player_hp -= 4; // کاهش HP بازیکن
+            snprintf(current_message, sizeof(current_message), "A Firemonter attacked you! Your HP is now %d.", player_hp);
         }
     }
 }
@@ -215,6 +284,27 @@ void attack_with_mace() {
         }
     }
 
+   for (int i = 0; i < 8; i++) {
+        int new_x = player_x + directions[i][0];
+        int new_y = player_y + directions[i][1];
+
+        if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
+            for (int j = 0; j < fire_count; j++) {
+                if (firemonsters[j].x == new_x && firemonsters[j].y == new_y) {
+                    firemonsters[j].hp -= 5; // آسیب به HP شیطان
+                    if (firemonsters[j].hp <= 0) {
+                        map[firemonsters[j].y][firemonsters[j].x] = '.'; // حذف شیطان از نقشه
+                        firemonsters[j] = firemonsters[fire_count - 1]; // جایگزین کردن شیطان حذف شده با آخرین شیطان در آرایه
+                        fire_count--; // کاهش شمارنده شیاطین
+                        snprintf(current_message, sizeof(current_message), "You killed a firemonter!");
+                        player_exp += 20;
+                    } else {
+                        snprintf(current_message, sizeof(current_message), "You hit a firemonter! Its HP is now %d.", firemonsters[j].hp);
+                    }
+                }
+            }
+        }
+    }
     refresh(); // Refresh to show the message
 }
 
@@ -581,7 +671,9 @@ int create_room(Room *room) {
     room->height = 4 + rand() % 4; // Room height (4 to 7)
     room->x = 1 + rand() % (WIDTH - room->width - 1); // Avoid map border
     room->y = 1 + rand() % (HEIGHT - room->height - 1);
+    
     room->has_demon = 0; // مقداردهی اولیه به 0
+    room->has_firemonster = 0; // مقداردهی اولیه به 0
 
     // Check if room overlaps with existing features
     for (int i = room->y; i < room->y + room->height; i++) {
@@ -943,7 +1035,8 @@ void regenerate_map() {
     // بازنشانی موقعیت شیاطین
     demon_count = 0;
     memset(demons, 0, sizeof(demons));
-
+    fire_count = 0;
+    memset(firemonsters, 0, sizeof(firemonsters));
     // بازسازی نقشه
     initialize_map();
 
@@ -1010,7 +1103,7 @@ void regenerate_map() {
 
     // اضافه کردن شیطان به اتاق‌ها
     add_demons_to_rooms(rooms, room_count);
-
+    add_firemonster_to_rooms(rooms,room_count);
     // Place special characters ">" and "<"
     place_single_special_characters(rooms, room_count);
 
@@ -1228,7 +1321,9 @@ void move_player(char input) {
     }
 
     activate_demons(); // فعال کردن شیاطین در صورت ورود بازیکن به اتاق
+    activate_firemonter();
     update_demons(); // بروزرسانی موقعیت شیاطین
+    update_firemonster();
 }
 
 void play_music() {
@@ -1311,7 +1406,8 @@ void loginUser() {
                 // بازنشانی موقعیت شیاطین
                 demon_count = 0;
                 memset(demons, 0, sizeof(demons));
-
+                fire_count = 0;
+                memset(firemonsters, 0, sizeof(firemonsters));
                 while (room_count < MAX_ROOMS) {
                     Room new_room;
                     if (create_room(&new_room)) {
