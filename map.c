@@ -42,6 +42,7 @@ typedef struct {
     int x, y;        // موقعیت هیولا
     int hp;          // سلامتی هیولا
     int active;      // آیا هیولا فعال است یا خیر
+    int room_index;  // شاخص اتاق که هیولا در آن قرار دارد
 } Monster;
 
 
@@ -77,6 +78,7 @@ typedef struct {
     int x, y; // Top-left corner
     int width, height; // Dimensions
     int door_x, door_y; // Door position
+    int has_demon;
 } Room;
 
 char hit_message[25] = "You hit a column!";
@@ -112,19 +114,36 @@ typedef struct {
     Room rooms[MAX_ROOMS];
     int room_count;
 } GameState;
+void add_demons_to_rooms(Room *rooms, int room_count) {
+    for (int i = 0; i < TOTAL_DEMONS; i++) {
+        int room_index;
+        int attempts = 0; // شمارنده تلاش‌ها برای جلوگیری از حلقه بی‌نهایت
+        do {
+            room_index = rand() % room_count;
+            attempts++;
+        } while (rooms[room_index].has_demon && attempts < 100); // اتاق جدید انتخاب می‌شود تا وقتی که شیطان در آن اتاق نباشد
 
-void add_demon_to_room(Room *room) {
-    if (demon_count < MAX_ROOMS) {
+        if (attempts >= 100) {
+            // در صورت نبود اتاق‌های خالی، شیطان جدید اضافه نمی‌شود
+            continue;
+        }
+
         Monster demon;
-        demon.x = room->x + 1 + rand() % (room->width - 2);
-        demon.y = room->y + 1 + rand() % (room->height - 2);
+        do {
+            demon.x = rooms[room_index].x + 1 + rand() % (rooms[room_index].width - 2);
+            demon.y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
+        } while (map[demon.y][demon.x] != '.'); // اطمینان از قرارگیری شیطان در داخل اتاق
+
         demon.hp = 5;
         demon.active = 0; // در ابتدا غیرفعال است
+        demon.room_index = room_index; // شاخص اتاق
 
         demons[demon_count++] = demon;
         map[demon.y][demon.x] = 'D'; // اضافه کردن شیطان به نقشه
+        rooms[room_index].has_demon = 1; // علامت‌گذاری اتاق به عنوان اتاق دارای شیطان
     }
 }
+
 void move_demon(Monster *demon) {
     if (!demon->active) return;
 
@@ -137,7 +156,7 @@ void move_demon(Monster *demon) {
     int new_x = demon->x + dx;
     int new_y = demon->y + dy;
 
-    if (map[new_y][new_x] == ' ' || map[new_y][new_x] == '.') {
+    if (map[new_y][new_x] == ' ' || map[new_y][new_x] == '.' || map[new_y][new_x] == 'f' || map[new_y][new_x] == 'j' || map[new_y][new_x] == 'm') {
         map[demon->y][demon->x] = '.'; // پاک کردن محل قبلی شیطان
         demon->x = new_x;
         demon->y = new_y;
@@ -145,10 +164,14 @@ void move_demon(Monster *demon) {
     }
 }
 
+
 void activate_demons() {
     for (int i = 0; i < demon_count; i++) {
-        if (map[player_y][player_x] == map[demons[i].y][demons[i].x] && !demons[i].active) {
-            demons[i].active = 1;
+        if (player_x >= rooms[demons[i].room_index].x && player_x < rooms[demons[i].room_index].x + rooms[demons[i].room_index].width &&
+            player_y >= rooms[demons[i].room_index].y && player_y < rooms[demons[i].room_index].y + rooms[demons[i].room_index].height) {
+            demons[i].active = 1; // فعال کردن شیطان در صورت ورود بازیکن به اتاق
+        } else {
+            demons[i].active = 0; // غیرفعال کردن شیطان در صورت خروج بازیکن از اتاق
         }
     }
 }
@@ -160,20 +183,6 @@ void update_demons() {
             player_hp -= 3; // کاهش HP بازیکن
             snprintf(current_message, sizeof(current_message), "A demon attacked you! Your HP is now %d.", player_hp);
         }
-    }
-}
-
-void add_demons_to_rooms(Room *rooms, int room_count) {
-    for (int i = 0; i < TOTAL_DEMONS; i++) {
-        int room_index = rand() % room_count;
-        Monster demon;
-        demon.x = rooms[room_index].x + 1 + rand() % (rooms[room_index].width - 2);
-        demon.y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
-        demon.hp = 5;
-        demon.active = 0; // در ابتدا غیرفعال است
-
-        demons[demon_count++] = demon;
-        map[demon.y][demon.x] = 'D'; // اضافه کردن شیطان به نقشه
     }
 }
 
@@ -534,6 +543,7 @@ int create_room(Room *room) {
     room->height = 4 + rand() % 4; // Room height (4 to 7)
     room->x = 1 + rand() % (WIDTH - room->width - 1); // Avoid map border
     room->y = 1 + rand() % (HEIGHT - room->height - 1);
+    room->has_demon = 0; // مقداردهی اولیه به 0
 
     // Check if room overlaps with existing features
     for (int i = room->y; i < room->y + room->height; i++) {
@@ -554,22 +564,23 @@ int create_room(Room *room) {
         }
     }
 
-// Add a door at one of the walls
-int door_side = rand() % 4; // Random side: 0 = top, 1 = bottom, 2 = left, 3 = right
-if (door_side == 0) { // Top
-    room->door_x = room->x + 1 + rand() % (room->width - 2);
-    room->door_y = room->y;
-} else if (door_side == 1) { // Bottom
-    room->door_x = room->x + 1 + rand() % (room->width - 2);
-    room->door_y = room->y + room->height - 1;
-} else if (door_side == 2) { // Left
-    room->door_x = room->x;
-    room->door_y = room->y + 1 + rand() % (room->height - 2);
-} else { // Right
-    room->door_x = room->x + room->width - 1;
-    room->door_y = room->y + 1 + rand() % (room->height - 2);
+    // Add a door at one of the walls
+    int door_side = rand() % 4; // Random side: 0 = top, 1 = bottom, 2 = left, 3 = right
+    if (door_side == 0) { // Top
+        room->door_x = room->x + 1 + rand() % (room->width - 2);
+        room->door_y = room->y;
+    } else if (door_side == 1) { // Bottom
+        room->door_x = room->x + 1 + rand() % (room->width - 2);
+        room->door_y = room->y + room->height - 1;
+    } else if (door_side == 2) { // Left
+        room->door_x = room->x;
+        room->door_y = room->y + 1 + rand() % (room->height - 2);
+    } else { // Right
+        room->door_x = room->x + room->width - 1;
+        room->door_y = room->y + 1 + rand() % (room->height - 2);
+    }
 }
-}
+
 void place_window_in_room(Room *room) {
     int window_x = 0, window_y = 0;
     int side = rand() % 4; 
@@ -862,7 +873,14 @@ void show_inventory() {
 
 
 void regenerate_map() {
-    // Initialize map
+    // تنظیم مقدار اولیه HP بازیکن
+    player_hp = 12;
+
+    // بازنشانی موقعیت شیاطین
+    demon_count = 0;
+    memset(demons, 0, sizeof(demons));
+
+    // بازسازی نقشه
     initialize_map();
 
     int room_count = 0;
@@ -879,7 +897,7 @@ void regenerate_map() {
         if (create_room(&new_room)) {
             add_columns_to_room(&new_room);
             if (room_count > 0)
-                connect_rooms(&rooms[room_count - 1], &new_room); // استفاده از آدرس اتاق‌ها
+                connect_rooms(&rooms[room_count - 1], &new_room);
             rooms[room_count++] = new_room;
         }
     }
@@ -891,50 +909,47 @@ void regenerate_map() {
 
         // Add gold to rooms
         if (gold_count < TOTAL_GOLD) {
-            add_gold_to_room(&rooms[i]); // اضافه کردن طلا به اتاق‌ها
+            add_gold_to_room(&rooms[i]);
             gold_count++;
         }
 
         // Add food to rooms
         if (food_count < TOTAL_FOOD) {
-            add_food_to_room(&rooms[i]); // اضافه کردن غذا به اتاق‌ها
+            add_food_to_room(&rooms[i]);
             food_count++;
         }
 
         // Add super food to rooms
         if (super_food_count < TOTAL_SUPER_FOOD) {
-            add_super_food_to_room(&rooms[i]); // اضافه کردن غذای اعلا به اتاق‌ها
+            add_super_food_to_room(&rooms[i]);
             super_food_count++;
         }
 
         // Add magic food to rooms
         if (magic_food_count < TOTAL_MAGIC_FOOD) {
-            add_magic_food_to_room(&rooms[i]); // اضافه کردن غذای جادویی به اتاق‌ها
+            add_magic_food_to_room(&rooms[i]);
             magic_food_count++;
         }
 
         // Add gold bags to rooms
         if (placed_gold_bags < TOTAL_GOLD_BAGS) {
-            add_gold_bag_to_room(&rooms[i]); // اضافه کردن کیسه طلا به اتاق‌ها
+            add_gold_bag_to_room(&rooms[i]);
             placed_gold_bags++;
         }
 
         // Add black gold to rooms
         if (placed_black_gold < TOTAL_BLACK_GOLD) {
-            add_black_gold_to_room(&rooms[i]); // اضافه کردن طلای سیاه به اتاق‌ها
+            add_black_gold_to_room(&rooms[i]);
             placed_black_gold++;
         }
     }
 
+    // اضافه کردن شیطان به اتاق‌ها
+    add_demons_to_rooms(rooms, room_count);
+
     // Place special characters ">" and "<"
     place_single_special_characters(rooms, room_count);
 
-
-    // اضافه کردن شیطان به اتاق‌ها
-    add_demons_to_rooms(rooms, room_count);
-    activate_demons();
-    update_demons();
-    
     // Place hero in a random room
     int hero_room = rand() % room_count;
     player_x = rooms[hero_room].x + 1 + rand() % (rooms[hero_room].width - 2);
@@ -1138,6 +1153,8 @@ void move_player(char input) {
         }
 
 
+
+
     activate_demons(); // فعال کردن شیاطین در صورت ورود بازیکن به اتاق
     update_demons(); // بروزرسانی موقعیت شیاطین
         // چاپ پیام فعلی
@@ -1223,6 +1240,13 @@ void loginUser() {
                 initialize_map();
                 initialize_trap_map();
                 int room_count = 0;
+
+                // تنظیم مقدار اولیه HP بازیکن
+                player_hp = 12;
+
+                // بازنشانی موقعیت شیاطین
+                demon_count = 0;
+                memset(demons, 0, sizeof(demons));
 
                 while (room_count < MAX_ROOMS) {
                     Room new_room;
