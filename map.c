@@ -46,6 +46,7 @@ typedef struct {
     int hp;          // سلامتی هیولا
     int active;      // آیا هیولا فعال است یا خیر
     int room_index;  // شاخص اتاق که هیولا در آن قرار دارد
+    int move_count;
 } Monster;
 
 
@@ -99,7 +100,7 @@ char hit_message[25] = "You hit a column!";
 int show_message = 0; // 1 if the message is active, 0 otherwise
 int player_level = 1;  // Starts with level 1
 int player_gold = 0;   // Starts with 0 gold
-int player_hp = 16;    // Starts with 12 HP
+int player_hp = 24;    // Starts with 12 HP
 int player_str = 16;   // Starts with strength 16
 int player_arm = 4;    // Starts with armor 4
 int player_exp = 0;    // Starts with 0 experience
@@ -180,12 +181,14 @@ void add_undeads_to_rooms(Room *rooms, int room_count) {
         undead.hp = 30;
         undead.active = 0; // در ابتدا غیرفعال است
         undead.room_index = room_index; // شاخص اتاق
+        undead.move_count = 0; // شمارنده حرکت‌ها
 
         undeads[undead_count++] = undead;
         map[undead.y][undead.x] = 'U'; // اضافه کردن شیطان به نقشه
         rooms[room_index].has_undead = 1; // علامت‌گذاری اتاق به عنوان اتاق دارای شیطان
     }
 }
+
 void add_giants_to_rooms(Room *rooms, int room_count) {
     for (int i = 0; i < TOTAL_GIANTS; i++) {
         int room_index;
@@ -209,12 +212,14 @@ void add_giants_to_rooms(Room *rooms, int room_count) {
         giant.hp = 5;
         giant.active = 0; // در ابتدا غیرفعال است
         giant.room_index = room_index; // شاخص اتاق
+        giant.move_count = 0; // شمارنده حرکت‌ها
 
         giants[giant_count++] = giant;
         map[giant.y][giant.x] = 'G'; // اضافه کردن شیطان به نقشه
         rooms[room_index].has_giant = 1; // علامت‌گذاری اتاق به عنوان اتاق دارای شیطان
     }
 }
+
 void add_snakes_to_rooms(Room *rooms, int room_count) {
     for (int i = 0; i < TOTAL_SNAKES; i++) {
         int room_index;
@@ -297,7 +302,7 @@ void move_demon(Monster *demon) {
     }
 }
 void move_undead(Monster *undead) {
-    if (!undead->active) return;
+    if (!undead->active || undead->move_count >= 5) return; // توقف حرکت اگر شمارنده به ۵ برسد
 
     int dx = 0, dy = 0;
     if (player_x > undead->x) dx = 1;
@@ -312,11 +317,13 @@ void move_undead(Monster *undead) {
         map[undead->y][undead->x] = '.'; // پاک کردن محل قبلی شیطان
         undead->x = new_x;
         undead->y = new_y;
-        map[new_y][new_x] = 'D'; // جایگذاری شیطان در محل جدید
+        map[new_y][new_x] = 'U'; // جایگذاری شیطان در محل جدید
+        undead->move_count++; // افزایش شمارنده حرکت‌ها
     }
 }
+
 void move_giant(Monster *giant) {
-    if (!giant->active) return;
+    if (!giant->active || giant->move_count >= 5) return; // توقف حرکت اگر شمارنده به ۵ برسد
 
     int dx = 0, dy = 0;
     if (player_x > giant->x) dx = 1;
@@ -332,8 +339,10 @@ void move_giant(Monster *giant) {
         giant->x = new_x;
         giant->y = new_y;
         map[new_y][new_x] = 'G'; // جایگذاری شیطان در محل جدید
+        giant->move_count++; // افزایش شمارنده حرکت‌ها
     }
 }
+
 void move_snake(Monster *snake) {
     if (!snake->active) return;
 
@@ -387,22 +396,28 @@ void activate_undead() {
     for (int i = 0; i < undead_count; i++) {
         if (player_x >= rooms[undeads[i].room_index].x && player_x < rooms[undeads[i].room_index].x + rooms[undeads[i].room_index].width &&
             player_y >= rooms[undeads[i].room_index].y && player_y < rooms[undeads[i].room_index].y + rooms[undeads[i].room_index].height) {
-            undeads[i].active = 1; // فعال کردن شیطان در صورت ورود بازیکن به اتاق
+            if (undeads[i].move_count < 5) { // فقط اگر شمارنده حرکت کمتر از ۵ باشد
+                undeads[i].active = 1; // فعال کردن شیطان
+            }
         } else {
             undeads[i].active = 0; // غیرفعال کردن شیطان در صورت خروج بازیکن از اتاق
         }
     }
 }
+
 void activate_giants() {
     for (int i = 0; i < giant_count; i++) {
         if (player_x >= rooms[giants[i].room_index].x && player_x < rooms[giants[i].room_index].x + rooms[giants[i].room_index].width &&
             player_y >= rooms[giants[i].room_index].y && player_y < rooms[giants[i].room_index].y + rooms[giants[i].room_index].height) {
-            giants[i].active = 1; // فعال کردن شیطان در صورت ورود بازیکن به اتاق
+            if (giants[i].move_count < 5) { // فقط اگر شمارنده حرکت کمتر از ۵ باشد
+                giants[i].active = 1; // فعال کردن شیطان
+            }
         } else {
             giants[i].active = 0; // غیرفعال کردن شیطان در صورت خروج بازیکن از اتاق
         }
     }
 }
+
 void activate_snakes() {
     for (int i = 0; i < snake_count; i++) {
         if (player_x >= rooms[snakes[i].room_index].x && player_x < rooms[snakes[i].room_index].x + rooms[snakes[i].room_index].width &&
@@ -1128,11 +1143,8 @@ void print_map() {
                 attron(COLOR_PAIR(COLOR_GREEN));
                 printw("%c", map[i][j]);
                 attroff(COLOR_PAIR(COLOR_GREEN));
-            } else if (map[i][j] == 'D') {
-                attron(COLOR_PAIR(COLOR_RED));
-                printw("%c", map[i][j]);
-                attroff(COLOR_PAIR(COLOR_RED));
-            } else if (seen_map[i][j] != ' ') {
+            } 
+             else if (seen_map[i][j] != ' ') {
                 printw("%c", seen_map[i][j]);
             } else {
                 printw(" ");
@@ -1321,7 +1333,7 @@ void show_inventory() {
 
 void regenerate_map() {
     // تنظیم مقدار اولیه HP بازیکن
-    player_hp = 12;
+    player_hp = 24;
 
     // بازنشانی موقعیت شیاطین
     demon_count = 0;
@@ -1710,7 +1722,7 @@ void loginUser() {
                 int room_count = 0;
 
                 // تنظیم مقدار اولیه HP بازیکن
-                player_hp = 12;
+                player_hp = 24;
 
                 // بازنشانی موقعیت شیاطین
                 demon_count = 0;
