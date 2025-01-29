@@ -975,11 +975,11 @@ void initialize_trap_map() {
 void add_traps_to_room(Room *room) {
     for (int i = 0; i < 3; i++) { // Add 3 traps per room
         int trap_x, trap_y;
-        do {
+        do {                                                                    
             trap_x = room->x + 1 + rand() % (room->width - 2);
             trap_y = room->y + 1 + rand() % (room->height - 2);
         } while (trap_map[trap_y][trap_x] == 'T'); // Ensure we don't place a trap on another trap
-
+        if(map[trap_y][trap_x] != '>' || map[trap_y][trap_x] != '<')
         trap_map[trap_y][trap_x] = 'T'; // Place a trap in the trap map
     }
 }
@@ -1267,7 +1267,7 @@ void move_player(char input) {
             int new_y = player_y + dy;
 
             // بررسی محدوده آرایه‌ها
-            if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT || map[new_y][new_x] == '#' || map[new_y][new_x] == '|') {
+            if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT || map[new_y][new_x] == '#' || map[new_y][new_x] == '|' || map[new_y][new_x] == ' '|| map[new_y][new_x] == '=' || map[new_y][new_x] == '+') {
                 break; // برخورد به مانع یا خروج از محدوده
             }
 
@@ -1283,6 +1283,7 @@ void move_player(char input) {
                 if (trap_map[player_y][player_x] == 'T') {
                     player_hp -= 1; // کاهش HP
                     snprintf(current_message, sizeof(current_message), "You stepped on a trap! Your HP is now %d.", player_hp);
+                    
                 }
 
                 // Check for gold
