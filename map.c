@@ -9,7 +9,7 @@
 #define PASSWORD_LENGTH 20
 #define EMAIL_LENGTH 100
 #define FILENAME "users.dat"
-#define WIDTH 80
+#define WIDTH 100
 #define HEIGHT 40
 #define MAX_ROOMS 9
 #define VISION_RADIUS 5
@@ -31,6 +31,7 @@
 #define TOTAL_DEMONS 10 // تعداد کل شیاطین
 #define TOTAL_FIRE 7
 #define TOTAL_SNAKES 5
+#define TOTAL_GIANTS 4
 int player_color = COLOR_YELLOW; // رنگ پیش‌فرض بازیکن
 int selected_music = 0; // موزیک انتخابی، 0: هیچ موزیکی انتخاب نشده
 int placed_magic_food = 0; // شمارش غذای جادویی قرار داده شده
@@ -48,6 +49,8 @@ typedef struct {
 
 Monster demons[TOTAL_DEMONS];
 int demon_count = 0;
+Monster giants[TOTAL_GIANTS];
+int giant_count = 0;
 Monster snakes[TOTAL_SNAKES];
 int snake_count = 0;
 Monster firemonsters[TOTAL_FIRE];
@@ -84,6 +87,7 @@ typedef struct {
     int has_demon;
     int has_firemonster;
     int has_snake;
+    int has_giant;
 } Room;
 
 char hit_message[25] = "You hit a column!";
@@ -146,6 +150,35 @@ void add_demons_to_rooms(Room *rooms, int room_count) {
         demons[demon_count++] = demon;
         map[demon.y][demon.x] = 'D'; // اضافه کردن شیطان به نقشه
         rooms[room_index].has_demon = 1; // علامت‌گذاری اتاق به عنوان اتاق دارای شیطان
+    }
+}
+void add_giants_to_rooms(Room *rooms, int room_count) {
+    for (int i = 0; i < TOTAL_GIANTS; i++) {
+        int room_index;
+        int attempts = 0; // شمارنده تلاش‌ها برای جلوگیری از حلقه بی‌نهایت
+        do {
+            room_index = rand() % room_count;
+            attempts++;
+        } while (rooms[room_index].has_giant && attempts < 100); // اتاق جدید انتخاب می‌شود تا وقتی که شیطان در آن اتاق نباشد
+
+        if (attempts >= 100) {
+            // در صورت نبود اتاق‌های خالی، شیطان جدید اضافه نمی‌شود
+            continue;
+        }
+
+        Monster giant;
+        do {
+            giant.x = rooms[room_index].x + 1 + rand() % (rooms[room_index].width - 2);
+            giant.y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
+        } while (map[giant.y][giant.x] != '.'); // اطمینان از قرارگیری شیطان در داخل اتاق
+
+        giant.hp = 5;
+        giant.active = 0; // در ابتدا غیرفعال است
+        giant.room_index = room_index; // شاخص اتاق
+
+        giants[giant_count++] = giant;
+        map[giant.y][giant.x] = 'G'; // اضافه کردن شیطان به نقشه
+        rooms[room_index].has_giant = 1; // علامت‌گذاری اتاق به عنوان اتاق دارای شیطان
     }
 }
 void add_snakes_to_rooms(Room *rooms, int room_count) {
@@ -229,6 +262,25 @@ void move_demon(Monster *demon) {
         map[new_y][new_x] = 'D'; // جایگذاری شیطان در محل جدید
     }
 }
+void move_giant(Monster *giant) {
+    if (!giant->active) return;
+
+    int dx = 0, dy = 0;
+    if (player_x > giant->x) dx = 1;
+    if (player_x < giant->x) dx = -1;
+    if (player_y > giant->y) dy = 1;
+    if (player_y < giant->y) dy = -1;
+
+    int new_x = giant->x + dx;
+    int new_y = giant->y + dy;
+
+    if (map[new_y][new_x] == ' ' || map[new_y][new_x] == '.' || map[new_y][new_x] == 'f' || map[new_y][new_x] == 'j' || map[new_y][new_x] == 'm') {
+        map[giant->y][giant->x] = '.'; // پاک کردن محل قبلی شیطان
+        giant->x = new_x;
+        giant->y = new_y;
+        map[new_y][new_x] = 'G'; // جایگذاری شیطان در محل جدید
+    }
+}
 void move_snake(Monster *snake) {
     if (!snake->active) return;
 
@@ -278,6 +330,16 @@ void activate_demons() {
         }
     }
 }
+void activate_giants() {
+    for (int i = 0; i < giant_count; i++) {
+        if (player_x >= rooms[giants[i].room_index].x && player_x < rooms[giants[i].room_index].x + rooms[giants[i].room_index].width &&
+            player_y >= rooms[giants[i].room_index].y && player_y < rooms[giants[i].room_index].y + rooms[giants[i].room_index].height) {
+            giants[i].active = 1; // فعال کردن شیطان در صورت ورود بازیکن به اتاق
+        } else {
+            giants[i].active = 0; // غیرفعال کردن شیطان در صورت خروج بازیکن از اتاق
+        }
+    }
+}
 void activate_snakes() {
     for (int i = 0; i < snake_count; i++) {
         if (player_x >= rooms[snakes[i].room_index].x && player_x < rooms[snakes[i].room_index].x + rooms[snakes[i].room_index].width &&
@@ -307,6 +369,15 @@ void update_demons() {
         if (abs(player_x - demons[i].x) <= 1 && abs(player_y - demons[i].y) <= 1) {
             player_hp -= 2; // کاهش HP بازیکن
             snprintf(current_message, sizeof(current_message), "A demon attacked you! Your HP is now %d.", player_hp);
+        }
+    }
+}
+void update_giantss() {
+    for (int i = 0; i < giant_count; i++) {
+        move_giant(&giants[i]);
+        if (abs(player_x - giants[i].x) <= 1 && abs(player_y - giants[i].y) <= 1) {
+            player_hp -= 3; // کاهش HP بازیکن
+            snprintf(current_message, sizeof(current_message), "A giant attacked you! Your HP is now %d.", player_hp);
         }
     }
 }
@@ -397,6 +468,27 @@ void attack_with_mace() {
                         player_exp += 40;
                     } else {
                         snprintf(current_message, sizeof(current_message), "You hit a snake! Its HP is now %d.", snakes[j].hp);
+                    }
+                }
+            }
+        }
+    }
+       for (int i = 0; i < 8; i++) {
+        int new_x = player_x + directions[i][0];
+        int new_y = player_y + directions[i][1];
+
+        if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
+            for (int j = 0; j < giant_count; j++) {
+                if (giants[j].x == new_x && giants[j].y == new_y) {
+                    giants[j].hp -= 5; // آسیب به HP شیطان
+                    if (giants[j].hp <= 0) {
+                        map[giants[j].y][giants[j].x] = '.'; // حذف شیطان از نقشه
+                        giants[j] = giants[giant_count - 1]; // جایگزین کردن شیطان حذف شده با آخرین شیطان در آرایه
+                        giant_count--; // کاهش شمارنده شیاطین
+                        snprintf(current_message, sizeof(current_message), "You killed a giant!");
+                        player_exp += 10;
+                    } else {
+                        snprintf(current_message, sizeof(current_message), "You hit a giant! Its HP is now %d.", giants[j].hp);
                     }
                 }
             }
@@ -764,7 +856,7 @@ void add_columns_to_room(Room *room) {
 }
 
 int create_room(Room *room) {
-    room->width = 4 + rand() % 30; // Room width (4 to 25)
+    room->width = 4 + rand() % 35; // Room width (4 to 25)
     room->height = 4 + rand() % 10; // Room height (4 to 7)
     room->x = 1 + rand() % (WIDTH - room->width - 1); // Avoid map border
     room->y = 1 + rand() % (HEIGHT - room->height - 1);
@@ -772,6 +864,8 @@ int create_room(Room *room) {
     room->has_demon = 0; // مقداردهی اولیه به 0
     room->has_firemonster = 0; // مقداردهی اولیه به 0
     room->has_snake = 0;
+    room->has_giant = 0;
+   
     // Check if room overlaps with existing features
     for (int i = room->y; i < room->y + room->height; i++) {
         for (int j = room->x; j < room->x + room->width; j++) {
@@ -1132,6 +1226,9 @@ void regenerate_map() {
     // بازنشانی موقعیت شیاطین
     demon_count = 0;
     memset(demons, 0, sizeof(demons));
+    giant_count = 0;
+    memset(giants, 0, sizeof(giants));
+
     fire_count = 0;
     memset(firemonsters, 0, sizeof(firemonsters));
     snake_count = 0;
@@ -1203,6 +1300,7 @@ void regenerate_map() {
     // اضافه کردن شیطان به اتاق‌ها
     add_demons_to_rooms(rooms, room_count);
     add_firemonster_to_rooms(rooms,room_count);
+    add_giants_to_rooms(rooms,room_count);
     add_snakes_to_rooms(rooms,room_count);
     // Place special characters ">" and "<"
     place_single_special_characters(rooms, room_count);
@@ -1424,9 +1522,11 @@ void move_player(char input) {
     activate_demons(); // فعال کردن شیاطین در صورت ورود بازیکن به اتاق
     activate_firemonter();
     activate_snakes();
+    activate_giants();
     update_demons(); // بروزرسانی موقعیت شیاطین
     update_snkaes();
     update_firemonster();
+    update_giantss();
 }
 
 void play_music() {
@@ -1509,6 +1609,9 @@ void loginUser() {
                 // بازنشانی موقعیت شیاطین
                 demon_count = 0;
                 memset(demons, 0, sizeof(demons));
+                giant_count = 0;
+                memset(giants, 0, sizeof(giants));
+
                 snake_count = 0;
                 memset(snakes, 0,sizeof(snakes));
                 fire_count = 0;
