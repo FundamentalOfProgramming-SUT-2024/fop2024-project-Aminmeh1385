@@ -503,6 +503,9 @@ void attack_with_mace() {
     } else if (strcmp(current_weapon, "Sword") == 0) {
         damage = 8;
     }
+    else if (strcmp(current_weapon, "Dagger")== 0){
+        damage = 12;
+    }
 
 
     for (int i = 0; i < 8; i++) {
@@ -625,6 +628,20 @@ void add_swords_to_rooms(Room *rooms, int room_count) {
 
         map[sword_y][sword_x] = '!'; // اضافه کردن شمشیر به نقشه
         sword_count++;
+    }
+}
+void add_daggers_to_rooms(Room *rooms, int room_count) {
+    int dagger_count = 0;
+    while (dagger_count < 2) { // دو شمشیر اضافه کنید
+        int room_index = rand() % room_count;
+        int dagger_x, dagger_y;
+        do {
+            dagger_x = rooms[room_index].x + 1 + rand() % (rooms[room_index].width - 2);
+            dagger_y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
+        } while (map[dagger_y][dagger_x] != '.'); // اطمینان از قرارگیری شمشیر در داخل اتاق
+
+        map[dagger_y][dagger_x] = 'k'; // اضافه کردن شمشیر به نقشه
+        dagger_count++;
     }
 }
 
@@ -1297,6 +1314,14 @@ void add_sword_to_inventory() {
         }
     }
 }
+void add_dagger_to_inventory() {
+    add_to_inventory("Dagger", "Weapon");
+    for (int i = 0; i < inventory_count; i++) {
+        if (strcmp(inventory[i].name, "Dagger") == 0) {
+            inventory[i].damage = 8; // تنظیم مقدار آسیب شمشیر
+        }
+    }
+}
 
 void show_inventory() {
     clear();
@@ -1374,6 +1399,7 @@ void show_inventory() {
 void regenerate_map() {
     // تنظیم مقدار اولیه HP بازیکن
     player_hp = 24;
+
 
     // بازنشانی موقعیت شیاطین
     demon_count = 0;
@@ -1459,6 +1485,7 @@ void regenerate_map() {
     add_undeads_to_rooms(rooms, room_count);
     add_snakes_to_rooms(rooms,room_count);
     add_swords_to_rooms(rooms,room_count);
+    add_daggers_to_rooms(rooms,room_count);
     // Place special characters ">" and "<"
     place_single_special_characters(rooms, room_count);
 
@@ -1527,7 +1554,7 @@ void move_player(char input) {
             }
 
             char destination_tile = map[new_y][new_x];
-            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!') {
+            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k') {
                 map[player_y][player_x] = '.';
                 player_x = new_x;
                 player_y = new_y;
@@ -1583,6 +1610,10 @@ void move_player(char input) {
                   add_sword_to_inventory();
                  snprintf(current_message, sizeof(current_message), "You picked up a sword!");
                 }
+                else if (destination_tile == 'k'){
+                    add_dagger_to_inventory();
+                     snprintf(current_message, sizeof(current_message), "You picked up a dagger!");
+                }
 
     // کدهای موجود برای مدیریت بقیه شرایط...
 
@@ -1619,7 +1650,7 @@ void move_player(char input) {
         }
 
         char destination_tile = map[new_y][new_x];
-        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile == '!') {
+        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile == '!' || destination_tile == 'k') {
             map[player_y][player_x] = '.';
             player_x = new_x;
             player_y = new_y;
@@ -1670,6 +1701,10 @@ void move_player(char input) {
             else if (destination_tile == '!') {
                   add_sword_to_inventory();
                  snprintf(current_message, sizeof(current_message), "You picked up a sword!");
+                }
+            else if (destination_tile == 'k'){
+                    add_dagger_to_inventory();
+                     snprintf(current_message, sizeof(current_message), "You picked up a dagger!");
                 }
             // Check for stairs and regenerate map if needed
             else if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
