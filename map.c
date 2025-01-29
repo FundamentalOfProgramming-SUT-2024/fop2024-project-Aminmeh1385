@@ -63,11 +63,13 @@ int fire_count = 0;
 typedef struct {
     char name[ITEM_NAME_LENGTH];
     char type[ITEM_NAME_LENGTH]; // نوع آیتم مانند غذا، اسلحه، طلسم
+    int damage;
 } Item;
 
 Item inventory[MAX_INVENTORY_ITEMS];
 int inventory_count = 0;
 int inventory_open = 0; // 0: بسته، 1: باز
+char current_weapon[ITEM_NAME_LENGTH] = "Mace"; // سلاح فعلی بازیکن
 
 int placed_black_gold = 0; // شمارش طلای سیاه قرار داده شده
 
@@ -495,6 +497,13 @@ void attack_with_mace() {
         {0, -1},          {0, 1},   // چپ، راست
         {1, -1}, {1, 0}, {1, 1}     // پایین چپ، پایین، پایین راست
     };
+       int damage = 0;
+    if (strcmp(current_weapon, "Mace") == 0) {
+        damage = 5;
+    } else if (strcmp(current_weapon, "Sword") == 0) {
+        damage = 8;
+    }
+
 
     for (int i = 0; i < 8; i++) {
         int new_x = player_x + directions[i][0];
@@ -503,7 +512,7 @@ void attack_with_mace() {
         if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
             for (int j = 0; j < demon_count; j++) {
                 if (demons[j].x == new_x && demons[j].y == new_y) {
-                    demons[j].hp -= 5; // آسیب به HP شیطان
+                    demons[j].hp -= damage; // آسیب به HP شیطان
                     if (demons[j].hp <= 0) {
                         map[demons[j].y][demons[j].x] = '.'; // حذف شیطان از نقشه
                         demons[j] = demons[demon_count - 1]; // جایگزین کردن شیطان حذف شده با آخرین شیطان در آرایه
@@ -525,7 +534,7 @@ void attack_with_mace() {
         if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
             for (int j = 0; j < fire_count; j++) {
                 if (firemonsters[j].x == new_x && firemonsters[j].y == new_y) {
-                    firemonsters[j].hp -= 5; // آسیب به HP شیطان
+                    firemonsters[j].hp -= damage; // آسیب به HP شیطان
                     if (firemonsters[j].hp <= 0) {
                         map[firemonsters[j].y][firemonsters[j].x] = '.'; // حذف شیطان از نقشه
                         firemonsters[j] = firemonsters[fire_count - 1]; // جایگزین کردن شیطان حذف شده با آخرین شیطان در آرایه
@@ -546,7 +555,7 @@ void attack_with_mace() {
         if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
             for (int j = 0; j < fire_count; j++) {
                 if (snakes[j].x == new_x && snakes[j].y == new_y) {
-                    snakes[j].hp -= 5; // آسیب به HP شیطان
+                    snakes[j].hp -= damage; // آسیب به HP شیطان
                     if (snakes[j].hp <= 0) {
                         map[snakes[j].y][snakes[j].x] = '.'; // حذف شیطان از نقشه
                         snakes[j] = snakes[snake_count-1]; // جایگزین کردن شیطان حذف شده با آخرین شیطان در آرایه
@@ -567,7 +576,7 @@ void attack_with_mace() {
         if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
             for (int j = 0; j < giant_count; j++) {
                 if (giants[j].x == new_x && giants[j].y == new_y) {
-                    giants[j].hp -= 5; // آسیب به HP شیطان
+                    giants[j].hp -= damage; // آسیب به HP شیطان
                     if (giants[j].hp <= 0) {
                         map[giants[j].y][giants[j].x] = '.'; // حذف شیطان از نقشه
                         giants[j] = giants[giant_count - 1]; // جایگزین کردن شیطان حذف شده با آخرین شیطان در آرایه
@@ -588,7 +597,7 @@ void attack_with_mace() {
         if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
             for (int j = 0; j < undead_count; j++) {
                 if (undeads[j].x == new_x && undeads[j].y == new_y) {
-                    undeads[j].hp -= 5; // آسیب به HP شیطان
+                    undeads[j].hp -= damage; // آسیب به HP شیطان
                     if (undeads[j].hp <= 0) {
                         map[undeads[j].y][undeads[j].x] = '.'; // حذف شیطان از نقشه
                         undeads[j] = undeads[undead_count - 1]; // جایگزین کردن شیطان حذف شده با آخرین شیطان در آرایه
@@ -604,10 +613,20 @@ void attack_with_mace() {
     }
     refresh(); // Refresh to show the message
 }
+void add_swords_to_rooms(Room *rooms, int room_count) {
+    int sword_count = 0;
+    while (sword_count < 2) { // دو شمشیر اضافه کنید
+        int room_index = rand() % room_count;
+        int sword_x, sword_y;
+        do {
+            sword_x = rooms[room_index].x + 1 + rand() % (rooms[room_index].width - 2);
+            sword_y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
+        } while (map[sword_y][sword_x] != '.'); // اطمینان از قرارگیری شمشیر در داخل اتاق
 
-
-
-
+        map[sword_y][sword_x] = '!'; // اضافه کردن شمشیر به نقشه
+        sword_count++;
+    }
+}
 
 void save_game(const char* filename, GameState* game_state) {
     FILE *file = fopen(filename, "wb");
@@ -1255,14 +1274,28 @@ void add_to_inventory(const char* item_name, const char* item_type) {
     if (inventory_count < MAX_INVENTORY_ITEMS) {
         strncpy(inventory[inventory_count].name, item_name, ITEM_NAME_LENGTH - 1);
         strncpy(inventory[inventory_count].type, item_type, ITEM_NAME_LENGTH - 1);
+        if (strcmp(item_name, "Sword") == 0) {
+            inventory[inventory_count].damage = 8; // مقدار آسیب شمشیر
+        } else if (strcmp(item_name, "Mace") == 0) {
+            inventory[inventory_count].damage = 5; // مقدار آسیب گرز
+        }
         inventory_count++;
     } else {
         printw("Inventory is full. Cannot add more items.\n");
     }
 }
 
+
 void add_mace_to_inventory() {
     add_to_inventory("Mace", "Weapon");
+}
+void add_sword_to_inventory() {
+    add_to_inventory("Sword", "Weapon");
+    for (int i = 0; i < inventory_count; i++) {
+        if (strcmp(inventory[i].name, "Sword") == 0) {
+            inventory[i].damage = 8; // تنظیم مقدار آسیب شمشیر
+        }
+    }
 }
 
 void show_inventory() {
@@ -1288,12 +1321,19 @@ void show_inventory() {
     printw("Press the number of the item to use it, or press 'i' to close the inventory and return to the game.\n");
     refresh();
 
+
+
+
+
     int ch;
     while ((ch = getch()) != 'i') {
         ch -= '0';
         if (ch >= 1 && ch <= inventory_count) {
-            // بررسی اینکه آیا آیتم غذای معمولی است و استفاده از آن برای افزایش HP
-            if (strcmp(inventory[ch - 1].name, "Food") == 0) {
+            if (strcmp(inventory[ch - 1].type, "Weapon") == 0) {
+                strncpy(current_weapon, inventory[ch - 1].name, ITEM_NAME_LENGTH - 1);
+                snprintf(current_message, sizeof(current_message), "You equipped %s.", current_weapon);
+            } else if (strcmp(inventory[ch - 1].name, "Food") == 0)
+              {
                 player_hp += 5;
                 snprintf(current_message, sizeof(current_message), "You used food! Your HP is now %d.", player_hp);
                 // حذف غذا از inventory پس از استفاده
@@ -1418,6 +1458,7 @@ void regenerate_map() {
     add_giants_to_rooms(rooms,room_count);
     add_undeads_to_rooms(rooms, room_count);
     add_snakes_to_rooms(rooms,room_count);
+    add_swords_to_rooms(rooms,room_count);
     // Place special characters ">" and "<"
     place_single_special_characters(rooms, room_count);
 
@@ -1486,7 +1527,7 @@ void move_player(char input) {
             }
 
             char destination_tile = map[new_y][new_x];
-            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm') {
+            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!') {
                 map[player_y][player_x] = '.';
                 player_x = new_x;
                 player_y = new_y;
@@ -1535,6 +1576,17 @@ void move_player(char input) {
                     add_to_inventory("Magic Food", "Consumable");
                     snprintf(current_message, sizeof(current_message), "You picked up magic food!");
                 }
+                
+                    // کدهای موجود برای مدیریت حرکت و غیره...
+
+                   else if (destination_tile == '!') {
+                  add_sword_to_inventory();
+                 snprintf(current_message, sizeof(current_message), "You picked up a sword!");
+                }
+
+    // کدهای موجود برای مدیریت بقیه شرایط...
+
+
 
                 // Check for stairs and regenerate map if needed
                 else if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
@@ -1567,7 +1619,7 @@ void move_player(char input) {
         }
 
         char destination_tile = map[new_y][new_x];
-        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm') {
+        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile == '!') {
             map[player_y][player_x] = '.';
             player_x = new_x;
             player_y = new_y;
@@ -1615,7 +1667,10 @@ void move_player(char input) {
                 add_to_inventory("Magic Food", "Consumable");
                 snprintf(current_message, sizeof(current_message), "You picked up magic food!");
             }
-
+            else if (destination_tile == '!') {
+                  add_sword_to_inventory();
+                 snprintf(current_message, sizeof(current_message), "You picked up a sword!");
+                }
             // Check for stairs and regenerate map if needed
             else if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
                 regenerations++;
