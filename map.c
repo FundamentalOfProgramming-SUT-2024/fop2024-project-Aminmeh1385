@@ -509,6 +509,9 @@ void attack_with_mace() {
     else if (strcmp(current_weapon, "Magic Wand")== 0){
         damage = 15;
     }
+    else if (strcmp(current_weapon, "Arrow") == 0){
+        damage = 5;
+    }
 
 
     for (int i = 0; i < 8; i++) {
@@ -645,6 +648,20 @@ void add_daggers_to_rooms(Room *rooms, int room_count) {
 
         map[dagger_y][dagger_x] = 'k'; // اضافه کردن شمشیر به نقشه
         dagger_count++;
+    }
+}
+void add_arrow_to_rooms(Room *rooms, int room_count) {
+    int arrow_count = 0;
+    while (arrow_count < 2) { // دو شمشیر اضافه کنید
+        int room_index = rand() % room_count;
+        int arrow_x, arrow_y;
+        do {
+            arrow_x = rooms[room_index].x + 1 + rand() % (rooms[room_index].width - 2);
+            arrow_y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
+        } while (map[arrow_y][arrow_y] != '.'); // اطمینان از قرارگیری شمشیر در داخل اتاق
+
+        map[arrow_y][arrow_x] = 'y'; // اضافه کردن شمشیر به نقشه
+        arrow_count++;
     }
 }
 void add_wands_to_rooms(Room *rooms, int room_count) {
@@ -1340,6 +1357,14 @@ void add_dagger_to_inventory() {
         }
     }
 }
+void add_arrow_to_inventory() {
+    add_to_inventory("Arrow", "Weapon");
+    for (int i = 0; i < inventory_count; i++) {
+        if (strcmp(inventory[i].name, "Arrow") == 0) {
+            inventory[i].damage = 8; // تنظیم مقدار آسیب شمشیر
+        }
+    }
+}
 void add_wand_to_inventory() {
     add_to_inventory("Magic Wand", "Weapon");
     for (int i = 0; i < inventory_count; i++) {
@@ -1513,6 +1538,7 @@ void regenerate_map() {
     add_swords_to_rooms(rooms,room_count);
     add_daggers_to_rooms(rooms,room_count);
     add_wands_to_rooms(rooms, room_count);
+    add_arrow_to_rooms(rooms,room_count);
     // Place special characters ">" and "<"
     place_single_special_characters(rooms, room_count);
 
@@ -1581,7 +1607,7 @@ void move_player(char input) {
             }
 
             char destination_tile = map[new_y][new_x];
-            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k'|| destination_tile == 'w') {
+            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y') {
                 map[player_y][player_x] = '.';
                 player_x = new_x;
                 player_y = new_y;
@@ -1645,6 +1671,11 @@ void move_player(char input) {
                     add_wand_to_inventory();
                      snprintf(current_message, sizeof(current_message), "You picked up a magic wand!");
                 }
+                  else if (destination_tile == 'y'){
+                    add_arrow_to_inventory();
+                     snprintf(current_message, sizeof(current_message), "You picked up a arrow!");
+                }
+
 
     // کدهای موجود برای مدیریت بقیه شرایط...
 
@@ -1681,7 +1712,7 @@ void move_player(char input) {
         }
 
         char destination_tile = map[new_y][new_x];
-        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile == '!' || destination_tile == 'k'|| destination_tile == 'w')  {
+        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile == '!' || destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y')  {
             map[player_y][player_x] = '.';
             player_x = new_x;
             player_y = new_y;
@@ -1741,6 +1772,11 @@ void move_player(char input) {
                     add_wand_to_inventory();
                      snprintf(current_message, sizeof(current_message), "You picked up a wand!");
                 }
+                  else if (destination_tile == 'y'){
+                    add_arrow_to_inventory();
+                     snprintf(current_message, sizeof(current_message), "You picked up a arrow!");
+                }
+
             // Check for stairs and regenerate map if needed
             else if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
                 regenerations++;
