@@ -34,7 +34,7 @@
 #define TOTAL_SNAKES 5
 #define TOTAL_GIANTS 4
 #define TOTAL_UNDEAD 2
-int player_color = COLOR_YELLOW; // رنگ پیش‌فرض بازیکن
+int player_color = COLOR_RED; // رنگ پیش‌فرض بازیکن
 int selected_music = 0; // موزیک انتخابی، 0: هیچ موزیکی انتخاب نشده
 int placed_magic_food = 0; // شمارش غذای جادویی قرار داده شده
 int placed_super_food = 0; // شمارش غذای اعلا قرار داده شده
@@ -1532,8 +1532,8 @@ void regenerate_map() {
     // اضافه کردن شیطان به اتاق‌ها
     add_demons_to_rooms(rooms, room_count);
     add_firemonster_to_rooms(rooms,room_count);
-    //add_giants_to_rooms(rooms,room_count);
     add_undeads_to_rooms(rooms, room_count);
+    add_giants_to_rooms(rooms,room_count);
     add_snakes_to_rooms(rooms,room_count);
    add_swords_to_rooms(rooms,room_count);
     add_daggers_to_rooms(rooms,room_count);
@@ -1688,6 +1688,7 @@ void move_player(char input) {
                     snprintf(current_message, sizeof(current_message), "Map regenerated! You are now on floor %d.", regenerations + 1);
                 } else if (regenerations >= MAX_REGENERATIONS) {
                     snprintf(current_message, sizeof(current_message), "Maximum map regenerations reached.");
+                    
                 }
             } else {
                 snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
