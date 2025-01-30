@@ -190,7 +190,6 @@ void add_undeads_to_rooms(Room *rooms, int room_count) {
         rooms[room_index].has_undead = 1; // علامت‌گذاری اتاق به عنوان اتاق دارای شیطان
     }
 }
-
 void add_giants_to_rooms(Room *rooms, int room_count) {
     for (int i = 0; i < TOTAL_GIANTS; i++) {
         int room_index;
@@ -211,7 +210,7 @@ void add_giants_to_rooms(Room *rooms, int room_count) {
             giant.y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
         } while (map[giant.y][giant.x] != '.'); // اطمینان از قرارگیری شیطان در داخل اتاق
 
-        giant.hp = 5;
+        giant.hp = 30;
         giant.active = 0; // در ابتدا غیرفعال است
         giant.room_index = room_index; // شاخص اتاق
         giant.move_count = 0; // شمارنده حرکت‌ها
@@ -650,7 +649,7 @@ void add_daggers_to_rooms(Room *rooms, int room_count) {
         dagger_count++;
     }
 }
-void add_arrow_to_rooms(Room *rooms, int room_count) {
+void add_arrows_to_rooms(Room *rooms, int room_count) {
     int arrow_count = 0;
     while (arrow_count < 2) { // دو شمشیر اضافه کنید
         int room_index = rand() % room_count;
@@ -658,12 +657,13 @@ void add_arrow_to_rooms(Room *rooms, int room_count) {
         do {
             arrow_x = rooms[room_index].x + 1 + rand() % (rooms[room_index].width - 2);
             arrow_y = rooms[room_index].y + 1 + rand() % (rooms[room_index].height - 2);
-        } while (map[arrow_y][arrow_y] != '.'); // اطمینان از قرارگیری شمشیر در داخل اتاق
+        } while (map[arrow_y][arrow_x] != '.'); // اطمینان از قرارگیری شمشیر در داخل اتاق
 
         map[arrow_y][arrow_x] = 'y'; // اضافه کردن شمشیر به نقشه
         arrow_count++;
     }
 }
+
 void add_wands_to_rooms(Room *rooms, int room_count) {
     int wand_count = 0;
     while (wand_count < 1) { // دو شمشیر اضافه کنید
@@ -1532,13 +1532,13 @@ void regenerate_map() {
     // اضافه کردن شیطان به اتاق‌ها
     add_demons_to_rooms(rooms, room_count);
     add_firemonster_to_rooms(rooms,room_count);
-    add_giants_to_rooms(rooms,room_count);
+    //add_giants_to_rooms(rooms,room_count);
     add_undeads_to_rooms(rooms, room_count);
     add_snakes_to_rooms(rooms,room_count);
-    add_swords_to_rooms(rooms,room_count);
+   add_swords_to_rooms(rooms,room_count);
     add_daggers_to_rooms(rooms,room_count);
-    add_wands_to_rooms(rooms, room_count);
-    add_arrow_to_rooms(rooms,room_count);
+   add_wands_to_rooms(rooms, room_count);
+    add_arrows_to_rooms(rooms,room_count);
     // Place special characters ">" and "<"
     place_single_special_characters(rooms, room_count);
 
