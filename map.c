@@ -43,7 +43,8 @@ int placed_magic_food = 0; // شمارش غذای جادویی قرار داده
 int placed_speed_spell = 0;
 int placed_super_food = 0; // شمارش غذای اعلا قرار داده شده
 int magic_food_active = 0; // 0: غیرفعال، 1: فعال
-
+int throw_mode = 0; // 0: غیر فعال، 1: فعال
+  int num_daggers = 0;
 int speed_spell_active = 0;
 int magic_food_moves = 0; // تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
 int speed_spell_moves = 0;
@@ -1627,6 +1628,88 @@ void regenerate_map() {
     refresh(); // Refresh to show the updated screen
 }
 
+void throw_dagger(int dx, int dy) {
+    if (num_daggers <= 0) {
+        snprintf(current_message, sizeof(current_message), "You don't have any daggers to throw.");
+        return;
+    }
+
+    int range = 5; // حداکثر تعداد خانه‌هایی که خنجر می‌تواند سفر کند
+    int damage = 12; // مقدار آسیب خنجر
+    int new_x = player_x;
+    int new_y = player_y;
+
+    for (int i = 0; i < range; i++) {
+        new_x += dx;
+        new_y += dy;
+
+        if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
+            // خنجر خارج از نقشه
+            snprintf(current_message, sizeof(current_message), "The dagger flies out of the map and disappears.");
+            break;
+        }
+
+        if (map[new_y][new_x] == '#' || map[new_y][new_x] == '|' || map[new_y][new_x] == '-') {
+            // برخورد خنجر با دیوار
+            new_x -= dx;
+            new_y -= dy;
+            map[new_y][new_x] = 'k'; // خنجر در خانه کنار دیوار می‌افتد
+            snprintf(current_message, sizeof(current_message), "The dagger hits a wall and falls.");
+            num_daggers--; // کاهش تعداد خنجرها در اینونتوری
+            break;
+        }
+
+        for (int j = 0; j < demon_count; j++) {
+            if (demons[j].x == new_x && demons[j].y == new_y) {
+                // برخورد خنجر با شیطان
+                demons[j].hp -= damage;
+                if (demons[j].hp <= 0) {
+                    map[demons[j].y][demons[j].x] = 'k'; // خنجر جایگزین شیطان حذف شده می‌شود
+                    demons[j] = demons[demon_count - 1];
+                    demon_count--;
+                    snprintf(current_message, sizeof(current_message), "You killed a demon with the dagger!");
+                } else {
+                    map[new_y][new_x] = 'k'; // خنجر در کنار شیطان می‌افتد
+                    snprintf(current_message, sizeof(current_message), "You hit a demon with the dagger! Its HP is now %d.", demons[j].hp);
+                }
+                num_daggers--; // کاهش تعداد خنجرها در اینونتوری
+                return;
+            }
+        }
+
+        // سایر کدهای برخورد خنجر با هیولاهای دیگر...
+
+        if (map[new_y][new_x] == '.') {
+            map[new_y][new_x] = 'k'; // خنجر در خانه خالی می‌افتد
+            snprintf(current_message, sizeof(current_message), "The dagger lands on the ground.");
+            num_daggers--; // کاهش تعداد خنجرها در اینونتوری
+            return;
+        }
+    }
+}
+
+void check_throw_mode() {
+    // بررسی اینونتوری برای وجود خنجر
+    int has_dagger = 0;
+    for (int i = 0; i < inventory_count; i++) {
+        if (strcmp(inventory[i].name, "Dagger") == 0) {
+            has_dagger = 1;
+            break;
+        }
+    }
+
+    if (has_dagger) {
+        throw_mode = !throw_mode; // تغییر حالت پرتاب
+        if (throw_mode) {
+            snprintf(current_message, sizeof(current_message), "Throw mode activated. Use numpad to throw the dagger.");
+        } else {
+            snprintf(current_message, sizeof(current_message), "Throw mode deactivated.");
+        }
+    } else {
+        snprintf(current_message, sizeof(current_message), "You don't have a dagger to throw.");
+    }
+}
+
 
 void move_player(char input) {
     int dx = 0, dy = 0; // تعریف متغیرهای dx و dy
@@ -1651,11 +1734,39 @@ void move_player(char input) {
         attack_with_mace();
         return;
     }
+    
 
     // پاک کردن پیام قبلی
     //clear_message(); 
 
-    switch (tolower(input)) {
+
+       if (tolower(input) == 'k') {
+        check_throw_mode(); // فعال/غیرفعال کردن حالت پرتاب
+        return;
+    }
+
+    if (throw_mode) {
+        int dx = 0, dy = 0;
+        switch (input) {
+            case '1': dx = -1; dy = 1; break;  // پرتاب خنجر به سمت پایین چپ
+            case '2': dy = 1; break;          // پرتاب خنجر به سمت پایین
+            case '3': dx = 1; dy = 1; break;  // پرتاب خنجر به سمت پایین راست
+            case '4': dx = -1; break;         // پرتاب خنجر به سمت چپ
+            case '6': dx = 1; break;          // پرتاب خنجر به سمت راست
+            case '7': dx = -1; dy = -1; break; // پرتاب خنجر به سمت بالا چپ
+            case '8': dy = -1; break;         // پرتاب خنجر به سمت بالا
+            case '9': dx = 1; dy = -1; break; // پرتاب خنجر به سمت بالا راست
+        }
+   
+        if (dx != 0 || dy != 0) {
+            throw_dagger(dx, dy);
+            throw_mode = 0; // غیرفعال کردن حالت پرتاب پس از پرتاب خنجر
+            return;
+        }
+   
+    }
+    
+              switch (tolower(input)) {
         case 'w': dy = -1; break; // حرکت به بالا
         case 's': dy = 1; break; // حرکت به پایین
         case 'a': dx = -1; break; // حرکت به چپ
@@ -1664,7 +1775,11 @@ void move_player(char input) {
         case 'e': dx = 1; dy = -1; break; // حرکت به بالا راست
         case 'z': dx = -1; dy = 1; break; // حرکت به پایین چپ
         case 'c': dx = 1; dy = 1; break; // حرکت به پایین راست
+        
         default: return;
+   
+    
+
     }
 
     if (magic_food_moves > 0) {
@@ -1746,6 +1861,7 @@ void move_player(char input) {
                 else if (destination_tile == 'k'){
                     add_dagger_to_inventory();
                      snprintf(current_message, sizeof(current_message), "You picked up a dagger!");
+                     num_daggers++;
                 }
                  else if (destination_tile == 'w'){
                     add_wand_to_inventory();
@@ -1860,6 +1976,7 @@ void move_player(char input) {
                 else if (destination_tile == 'k'){
                     add_dagger_to_inventory();
                      snprintf(current_message, sizeof(current_message), "You picked up a dagger!");
+                     num_daggers++;
                 }
                  else if (destination_tile == 'w'){
                     add_wand_to_inventory();
@@ -1974,6 +2091,7 @@ void move_player(char input) {
             else if (destination_tile == 'k'){
                     add_dagger_to_inventory();
                      snprintf(current_message, sizeof(current_message), "You picked up a dagger!");
+                     num_daggers++;
                 }
                  else if (destination_tile == 'w'){
                     add_wand_to_inventory();
