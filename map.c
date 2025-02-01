@@ -22,6 +22,7 @@
 #define TOTAL_FOOD 10 // تعداد کل غذای معمولی
 #define TOTAL_SUPER_FOOD 6 // تعداد کل غذای اعلا
 #define TOTAL_MAGIC_FOOD 4 // تعداد کل غذای جادویی
+#define TOTAL_SPEED_SPELL 4
 #define COLOR_RED 1
 #define COLOR_GREEN 2
 #define COLOR_YELLOW 3
@@ -37,9 +38,12 @@
 int player_color = COLOR_RED; // رنگ پیش‌فرض بازیکن
 int selected_music = 0; // موزیک انتخابی، 0: هیچ موزیکی انتخاب نشده
 int placed_magic_food = 0; // شمارش غذای جادویی قرار داده شده
+int placed_speed_spell = 0;
 int placed_super_food = 0; // شمارش غذای اعلا قرار داده شده
 int magic_food_active = 0; // 0: غیرفعال، 1: فعال
+int speed_spell_active = 0;
 int magic_food_moves = 0; // تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
+int speed_spell_moves = 0;
 int placed_food = 0; // شمارش غذای قرار داده شده
 typedef struct {
     int x, y;        // موقعیت هیولا
@@ -845,7 +849,18 @@ void add_magic_food_to_room(Room *room) {
         placed_magic_food++;
     }
 }
+void add_speed_spell_to_room(Room *room) {
+    for (int i = 0; i < 1; i++) { // Add 1 magic food per room
+        int speed_spell_x, speed_spell_y;
+        do {
+            speed_spell_x = room->x + 1 + rand() % (room->width - 2);
+            speed_spell_y = room->y + 1 + rand() % (room->height - 2);
+        } while (map[speed_spell_y][speed_spell_x] == 'X'); // Ensure we don't place magic food on another magic food
 
+        map[speed_spell_y][speed_spell_x] = 'X'; // Place magic food in the map
+        placed_speed_spell++;
+    }
+}
 
 void saveUsers() {
     FILE *file = fopen("users.txt", "w");
@@ -1393,6 +1408,12 @@ void show_inventory() {
             printw("%d. %s (%s)\n", i + 1, inventory[i].name, inventory[i].type);
         }
     }
+ printw("Spells:\n");
+    for (int i = 0; i < inventory_count; i++) {
+        if (strcmp(inventory[i].type, "Spells") == 0) {
+            printw("%d. %s (%s)\n", i + 1, inventory[i].name, inventory[i].type);
+        }
+    }
 
     printw("Press the number of the item to use it, or press 'i' to close the inventory and return to the game.\n");
     refresh();
@@ -1435,7 +1456,16 @@ void show_inventory() {
                     inventory[j] = inventory[j + 1];
                 }
                 inventory_count--;
-            } else {
+            } 
+            else if (strcmp(inventory[ch - 1].name, "Speed Spells") == 0) {
+                speed_spell_moves = 7; // مقداردهی به تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
+                snprintf(current_message, sizeof(current_message), "You used speed spell . You have 7 magic moves.");
+                // حذف غذای جادویی از inventory پس از استفاده
+                for (int j = ch - 1; j < inventory_count - 1; j++) {
+                    inventory[j] = inventory[j + 1];
+                }
+                inventory_count--;
+            }else {
                 printw("You used %s.\n", inventory[ch - 1].name);
                 refresh();
                 getch(); // Wait for the user to press a key to acknowledge using the item
@@ -1473,6 +1503,7 @@ void regenerate_map() {
     int food_count = 0; // شمارش غذای معمولی
     int super_food_count = 0; // شمارش غذای اعلا
     int magic_food_count = 0; // شمارش غذای جادویی
+    int speed_spell_count = 0;
     placed_gold_bags = 0; // شمارش کیسه‌های طلای قرار داده شده
     placed_black_gold = 0; // شمارش طلای سیاه قرار داده شده
 
@@ -1514,6 +1545,11 @@ void regenerate_map() {
         if (magic_food_count < TOTAL_MAGIC_FOOD) {
             add_magic_food_to_room(&rooms[i]);
             magic_food_count++;
+        }
+          // Add magic food to rooms
+        if (speed_spell_count < TOTAL_SPEED_SPELL) {
+            add_speed_spell_to_room(&rooms[i]);
+            speed_spell_count++;
         }
 
         // Add gold bags to rooms
@@ -1595,7 +1631,7 @@ void move_player(char input) {
         default: return;
     }
 
-    if (magic_food_moves > 0) {
+    if (magic_food_moves > 0 || speed_spell_moves > 0) {
         // حرکت در جهت مشخص شده تا برخورد به مانع
         while (1) {
             int new_x = player_x + dx;
@@ -1607,7 +1643,7 @@ void move_player(char input) {
             }
 
             char destination_tile = map[new_y][new_x];
-            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y') {
+            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y' || destination_tile =='X') {
                 map[player_y][player_x] = '.';
                 player_x = new_x;
                 player_y = new_y;
@@ -1656,7 +1692,10 @@ void move_player(char input) {
                     add_to_inventory("Magic Food", "Consumable");
                     snprintf(current_message, sizeof(current_message), "You picked up magic food!");
                 }
-                
+                 else if (destination_tile == 'X') {
+                    add_to_inventory("Speed Spell", "Spells");
+                    snprintf(current_message, sizeof(current_message), "You picked up speed spell!");
+                }
                     // کدهای موجود برای مدیریت حرکت و غیره...
 
                    else if (destination_tile == '!') {
@@ -1699,7 +1738,8 @@ void move_player(char input) {
             mvprintw(HEIGHT, 0, "%s", current_message);
             refresh(); // Refresh to show the message
         }
-        magic_food_moves--; // کاهش تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
+        magic_food_moves--;
+        speed_spell_moves--; // کاهش تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
     } else {
         int new_x = player_x + dx;
         int new_y = player_y + dy;
@@ -1713,7 +1753,7 @@ void move_player(char input) {
         }
 
         char destination_tile = map[new_y][new_x];
-        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile == '!' || destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y')  {
+        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile == '!' || destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y' || destination_tile == 'X')  {
             map[player_y][player_x] = '.';
             player_x = new_x;
             player_y = new_y;
@@ -1760,6 +1800,11 @@ void move_player(char input) {
             else if (destination_tile == 'm') {
                 add_to_inventory("Magic Food", "Consumable");
                 snprintf(current_message, sizeof(current_message), "You picked up magic food!");
+            }
+             // Check for magic food
+            else if (destination_tile == 'X') {
+                add_to_inventory("Speed Spell", "Spells");
+                snprintf(current_message, sizeof(current_message), "You picked up speed spell!");
             }
             else if (destination_tile == '!') {
                   add_sword_to_inventory();
