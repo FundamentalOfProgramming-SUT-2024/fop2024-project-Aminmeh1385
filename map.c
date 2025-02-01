@@ -1457,15 +1457,16 @@ void show_inventory() {
                 }
                 inventory_count--;
             } 
-            else if (strcmp(inventory[ch - 1].name, "Speed Spells") == 0) {
+            else if (strcmp(inventory[ch - 1].name, "Speed Spell") == 0) {
+                player_hp += 1; // افزایش HP
                 speed_spell_moves = 7; // مقداردهی به تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
-                snprintf(current_message, sizeof(current_message), "You used speed spell . You have 7 magic moves.");
+                snprintf(current_message, sizeof(current_message), "You used speed spell! Your HP is now %d. You have 7 magic moves.", player_hp);
                 // حذف غذای جادویی از inventory پس از استفاده
                 for (int j = ch - 1; j < inventory_count - 1; j++) {
                     inventory[j] = inventory[j + 1];
                 }
                 inventory_count--;
-            }else {
+            } else {
                 printw("You used %s.\n", inventory[ch - 1].name);
                 refresh();
                 getch(); // Wait for the user to press a key to acknowledge using the item
@@ -1631,7 +1632,7 @@ void move_player(char input) {
         default: return;
     }
 
-    if (magic_food_moves > 0 || speed_spell_moves > 0) {
+    if (magic_food_moves > 0) {
         // حرکت در جهت مشخص شده تا برخورد به مانع
         while (1) {
             int new_x = player_x + dx;
@@ -1739,8 +1740,120 @@ void move_player(char input) {
             refresh(); // Refresh to show the message
         }
         magic_food_moves--;
-        speed_spell_moves--; // کاهش تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
-    } else {
+         // کاهش تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
+    }
+      else if (speed_spell_moves > 0) {
+        // حرکت در جهت مشخص شده تا برخورد به مانع
+        while (1) {
+            int new_x = player_x + dx;
+            int new_y = player_y + dy;
+
+            // بررسی محدوده آرایه‌ها
+            if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT || map[new_y][new_x] == '#' || map[new_y][new_x] == '|' || map[new_y][new_x] == ' '|| map[new_y][new_x] == '=' || map[new_y][new_x] == '+') {
+                break; // برخورد به مانع یا خروج از محدوده
+            }
+
+            char destination_tile = map[new_y][new_x];
+            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y' || destination_tile =='X') {
+                map[player_y][player_x] = '.';
+                player_x = new_x;
+                player_y = new_y;
+                map[player_y][player_x] = '@';
+                update_seen_tiles();
+
+                // Check for traps
+                if (trap_map[player_y][player_x] == 'T') {
+                    player_hp -= 1; // کاهش HP
+                    snprintf(current_message, sizeof(current_message), "You stepped on a trap! Your HP is now %d.", player_hp);
+                    
+                }
+
+                // Check for gold
+                else if (destination_tile == 'g') {
+                    player_gold += 5; // افزایش طلا
+                    snprintf(current_message, sizeof(current_message), "You picked up gold! Your gold is now %d.", player_gold);
+                }
+
+                // Check for gold bags
+                else if (destination_tile == '&') {
+                    player_gold += 10; // افزایش طلا
+                    snprintf(current_message, sizeof(current_message), "You picked up a gold bag! Your gold is now %d.", player_gold);
+                }
+
+                // Check for black gold
+                else if (destination_tile == 'B') {
+                    player_gold += 20; // افزایش طلا
+                    snprintf(current_message, sizeof(current_message), "You picked up black gold! Your gold is now %d.", player_gold);
+                }
+
+                // Check for food
+                else if (destination_tile == 'f') {
+                    add_to_inventory("Food", "Consumable");
+                    snprintf(current_message, sizeof(current_message), "You picked up food!");
+                }
+
+                // Check for super food
+                else if (destination_tile == 'j') {
+                    add_to_inventory("Super Food", "Consumable");
+                    snprintf(current_message, sizeof(current_message), "You picked up super food!");
+                }
+
+                // Check for magic food
+                else if (destination_tile == 'm') {
+                    add_to_inventory("Magic Food", "Consumable");
+                    snprintf(current_message, sizeof(current_message), "You picked up magic food!");
+                }
+                 else if (destination_tile == 'X') {
+                    add_to_inventory("Speed Spell", "Spells");
+                    snprintf(current_message, sizeof(current_message), "You picked up speed spell!");
+                }
+                    // کدهای موجود برای مدیریت حرکت و غیره...
+
+                   else if (destination_tile == '!') {
+                  add_sword_to_inventory();
+                 snprintf(current_message, sizeof(current_message), "You picked up a sword!");
+                }
+                else if (destination_tile == 'k'){
+                    add_dagger_to_inventory();
+                     snprintf(current_message, sizeof(current_message), "You picked up a dagger!");
+                }
+                 else if (destination_tile == 'w'){
+                    add_wand_to_inventory();
+                     snprintf(current_message, sizeof(current_message), "You picked up a magic wand!");
+                }
+                  else if (destination_tile == 'y'){
+                    add_arrow_to_inventory();
+                     snprintf(current_message, sizeof(current_message), "You picked up a arrow!");
+                }
+
+
+    // کدهای موجود برای مدیریت بقیه شرایط...
+
+
+
+                // Check for stairs and regenerate map if needed
+                else if ((destination_tile == '>' || destination_tile == '<') && regenerations < MAX_REGENERATIONS) {
+                    regenerations++;
+                    regenerate_map();
+                    snprintf(current_message, sizeof(current_message), "Map regenerated! You are now on floor %d.", regenerations + 1);
+                } else if (regenerations >= MAX_REGENERATIONS) {
+                    snprintf(current_message, sizeof(current_message), "Maximum map regenerations reached.");
+                    
+                }
+            } else {
+                snprintf(current_message, sizeof(current_message), "You cannot move there! That path is blocked.");
+                break;
+            }
+
+            // چاپ پیام فعلی
+            mvprintw(HEIGHT, 0, "%s", current_message);
+            refresh(); // Refresh to show the message
+        }
+        speed_spell_moves--;
+        // کاهش تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
+    }
+     
+    else {
         int new_x = player_x + dx;
         int new_y = player_y + dy;
 
@@ -2017,7 +2130,7 @@ void loginUser() {
                 if (player_hp <= 0) {
                     clear();
                     printw("Game Over! You ran out of HP.\n");
-                    
+                    regenerations = 0;
                     refresh();
                     getch();
                     stop_music();
