@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <unistd.h> // برای استفاده از تابع sleep
 #define MAX_USERS 100
 #define USERNAME_LENGTH 50
 #define PASSWORD_LENGTH 20
@@ -22,6 +23,7 @@
 #define TOTAL_FOOD 10 // تعداد کل غذای معمولی
 #define TOTAL_SUPER_FOOD 6 // تعداد کل غذای اعلا
 #define TOTAL_MAGIC_FOOD 4 // تعداد کل غذای جادویی
+#define TOTAL_HEALTH_SPELLS 4
 #define TOTAL_SPEED_SPELL 4
 #define COLOR_RED 1
 #define COLOR_GREEN 2
@@ -41,6 +43,7 @@ int placed_magic_food = 0; // شمارش غذای جادویی قرار داده
 int placed_speed_spell = 0;
 int placed_super_food = 0; // شمارش غذای اعلا قرار داده شده
 int magic_food_active = 0; // 0: غیرفعال، 1: فعال
+
 int speed_spell_active = 0;
 int magic_food_moves = 0; // تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
 int speed_spell_moves = 0;
@@ -837,6 +840,18 @@ void add_super_food_to_room(Room *room) {
         placed_super_food++;
     }
 }
+void add_health_spell_to_room(Room *room) {
+    for (int i = 0; i < 1; i++) { // Add 1 super food per room
+        int health_spell_x, health_spell_y;
+        do {
+            health_spell_x = room->x + 1 + rand() % (room->width - 2);
+            health_spell_y = room->y + 1 + rand() % (room->height - 2);
+        } while (map[health_spell_y][health_spell_x] == 'H'); // Ensure we don't place super food on another super food
+
+        map[health_spell_y][health_spell_x] = 'H'; // Place super food in the map
+        placed_super_food++;
+    }
+}
 void add_magic_food_to_room(Room *room) {
     for (int i = 0; i < 1; i++) { // Add 1 magic food per room
         int magic_food_x, magic_food_y;
@@ -1447,6 +1462,19 @@ void show_inventory() {
                     inventory[j] = inventory[j + 1];
                 }
                 inventory_count--;
+            }
+            else if (strcmp(inventory[ch - 1].name, "Health Spell") == 0) {
+                for(int i = 0; i < 10 ; i++){
+                        sleep(1);
+                      player_hp += 1; // افزایش HP
+                snprintf(current_message, sizeof(current_message), "You used health spell! Your HP is now %d, and your strength is now %d.", player_hp, player_str);
+                // حذف غذای اعلا از inventory پس از استفاده
+                }
+              
+                for (int j = ch - 1; j < inventory_count - 1; j++) {
+                    inventory[j] = inventory[j + 1];
+                }
+                inventory_count--;
             } else if (strcmp(inventory[ch - 1].name, "Magic Food") == 0) {
                 player_hp += 8; // افزایش HP
                 magic_food_moves = 7; // مقداردهی به تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
@@ -1503,6 +1531,7 @@ void regenerate_map() {
     int gold_count = 0; // شمارش طلای معمولی
     int food_count = 0; // شمارش غذای معمولی
     int super_food_count = 0; // شمارش غذای اعلا
+    int health_spell_count = 0;
     int magic_food_count = 0; // شمارش غذای جادویی
     int speed_spell_count = 0;
     placed_gold_bags = 0; // شمارش کیسه‌های طلای قرار داده شده
@@ -1541,6 +1570,12 @@ void regenerate_map() {
             add_super_food_to_room(&rooms[i]);
             super_food_count++;
         }
+          // Add super food to rooms
+        if (health_spell_count < TOTAL_HEALTH_SPELLS) {
+            add_health_spell_to_room(&rooms[i]);
+            health_spell_count++;
+        }
+
 
         // Add magic food to rooms
         if (magic_food_count < TOTAL_MAGIC_FOOD) {
@@ -1644,7 +1679,7 @@ void move_player(char input) {
             }
 
             char destination_tile = map[new_y][new_x];
-            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y' || destination_tile =='X') {
+            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y' || destination_tile =='X'|| destination_tile =='H') {
                 map[player_y][player_x] = '.';
                 player_x = new_x;
                 player_y = new_y;
@@ -1687,6 +1722,11 @@ void move_player(char input) {
                     add_to_inventory("Super Food", "Consumable");
                     snprintf(current_message, sizeof(current_message), "You picked up super food!");
                 }
+                 else if (destination_tile == 'H') {
+                    add_to_inventory("Health Spell", "Spells");
+                    snprintf(current_message, sizeof(current_message), "You picked up super food!");
+                }
+
 
                 // Check for magic food
                 else if (destination_tile == 'm') {
@@ -1754,7 +1794,7 @@ void move_player(char input) {
             }
 
             char destination_tile = map[new_y][new_x];
-            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y' || destination_tile =='X') {
+            if (destination_tile == ' ' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile =='!'|| destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y' || destination_tile =='X' || destination_tile == 'H') {
                 map[player_y][player_x] = '.';
                 player_x = new_x;
                 player_y = new_y;
@@ -1796,6 +1836,10 @@ void move_player(char input) {
                 else if (destination_tile == 'j') {
                     add_to_inventory("Super Food", "Consumable");
                     snprintf(current_message, sizeof(current_message), "You picked up super food!");
+                }
+                  else if (destination_tile == 'H') {
+                    add_to_inventory("Health Spell", "Spells");
+                    snprintf(current_message, sizeof(current_message), "You picked up health spell!");
                 }
 
                 // Check for magic food
@@ -1866,7 +1910,7 @@ void move_player(char input) {
         }
 
         char destination_tile = map[new_y][new_x];
-        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile == '!' || destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y' || destination_tile == 'X')  {
+        if (destination_tile == '#' || destination_tile == '.' || destination_tile == '+' || destination_tile == '<' || destination_tile == '>' || destination_tile == 'g' || destination_tile == '&' || destination_tile == 'B' || destination_tile == 'f' || destination_tile == 'j' || destination_tile == 'm' || destination_tile == '!' || destination_tile == 'k'|| destination_tile == 'w'|| destination_tile == 'y' || destination_tile == 'X' || destination_tile == 'H')  {
             map[player_y][player_x] = '.';
             player_x = new_x;
             player_y = new_y;
@@ -1908,7 +1952,11 @@ void move_player(char input) {
                 add_to_inventory("Super Food", "Consumable");
                 snprintf(current_message, sizeof(current_message), "You picked up super food!");
             }
-
+             else if (destination_tile == 'H') {
+                add_to_inventory("Health Spell", "Spells");
+                snprintf(current_message, sizeof(current_message), "You picked up health spell!");
+            }
+            
             // Check for magic food
             else if (destination_tile == 'm') {
                 add_to_inventory("Magic Food", "Consumable");
