@@ -45,6 +45,8 @@ int placed_super_food = 0; // شمارش غذای اعلا قرار داده ش�
 int magic_food_active = 0; // 0: غیرفعال، 1: فعال
 int throw_mode = 0; // 0: غیر فعال، 1: فعال
   int num_daggers = 0;
+  int num_arrows =0;
+  int num_wand = 0;
 int speed_spell_active = 0;
 int magic_food_moves = 0; // تعداد حرکت‌های باقی‌مانده از نوع غذای جادویی
 int speed_spell_moves = 0;
@@ -1678,15 +1680,37 @@ void throw_dagger(int dx, int dy) {
         }
 
         // سایر کدهای برخورد خنجر با هیولاهای دیگر...
-
+        for (int j = 0; j < undead_count; j++) {
+            if (undeads[j].x == new_x && undeads[j].y == new_y) {
+                // برخورد خنجر با هیولای مرده
+                undeads[j].hp -= damage;
+                if (undeads[j].hp <= 0) {
+                    map[undeads[j].y][undeads[j].x] = 'k'; // خنجر جایگزین هیولای مرده حذف شده می‌شود
+                    undeads[j] = undeads[undead_count - 1];
+                    undead_count--;
+                    snprintf(current_message, sizeof(current_message), "You killed an undead with the dagger!");
+                } else {
+                    map[new_y][new_x] = 'k'; // خنجر در کنار هیولای مرده می‌افتد
+                    snprintf(current_message, sizeof(current_message), "You hit an undead with the dagger! Its HP is now %d.", undeads[j].hp);
+                }
+                num_daggers--; // کاهش تعداد خنجرها در اینونتوری
+                return;
+            }
+        }
+           
         if (map[new_y][new_x] == '.') {
-            map[new_y][new_x] = 'k'; // خنجر در خانه خالی می‌افتد
+            
+
+                       map[new_y][new_x] = 'k'; // خنجر در خانه خالی می‌افتد
             snprintf(current_message, sizeof(current_message), "The dagger lands on the ground.");
             num_daggers--; // کاهش تعداد خنجرها در اینونتوری
             return;
+            
+         
         }
     }
 }
+
 
 void check_throw_mode() {
     // بررسی اینونتوری برای وجود خنجر
@@ -1707,6 +1731,111 @@ void check_throw_mode() {
         }
     } else {
         snprintf(current_message, sizeof(current_message), "You don't have a dagger to throw.");
+    }
+}
+
+
+void throw_arrow(int dx, int dy) {
+    if (num_arrows <= 0) {
+        snprintf(current_message, sizeof(current_message), "You don't have any arrows to throw.");
+        return;
+    }
+
+    int range = 5; // حداکثر تعداد خانه‌هایی که خنجر می‌تواند سفر کند
+    int damage = 5; // مقدار آسیب خنجر
+    int new_x = player_x;
+    int new_y = player_y;
+
+    for (int i = 0; i < range; i++) {
+        new_x += dx;
+        new_y += dy;
+
+        if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
+            // خنجر خارج از نقشه
+            snprintf(current_message, sizeof(current_message), "The arrow flies out of the map and disappears.");
+            break;
+        }
+
+        if (map[new_y][new_x] == '#' || map[new_y][new_x] == '|' || map[new_y][new_x] == '-') {
+            // برخورد خنجر با دیوار
+            new_x -= dx;
+            new_y -= dy;
+            map[new_y][new_x] = 'y'; // خنجر در خانه کنار دیوار می‌افتد
+            snprintf(current_message, sizeof(current_message), "The arrow hits a wall and falls.");
+            num_arrows--; // کاهش تعداد خنجرها در اینونتوری
+            break;
+        }
+
+        for (int j = 0; j < demon_count; j++) {
+            if (demons[j].x == new_x && demons[j].y == new_y) {
+                // برخورد خنجر با شیطان
+                demons[j].hp -= damage;
+                if (demons[j].hp <= 0) {
+                    map[demons[j].y][demons[j].x] = 'y'; // خنجر جایگزین شیطان حذف شده می‌شود
+                    demons[j] = demons[demon_count - 1];
+                    demon_count--;
+                    snprintf(current_message, sizeof(current_message), "You killed a demon with the arrow!");
+                } else {
+                    map[new_y][new_x] = 'y'; // خنجر در کنار شیطان می‌افتد
+                    snprintf(current_message, sizeof(current_message), "You hit a demon with the arrow! Its HP is now %d.", demons[j].hp);
+                }
+                num_arrows--; // کاهش تعداد خنجرها در اینونتوری
+                return;
+            }
+        }
+
+        // سایر کدهای برخورد خنجر با هیولاهای دیگر...
+        for (int j = 0; j < undead_count; j++) {
+            if (undeads[j].x == new_x && undeads[j].y == new_y) {
+                // برخورد خنجر با هیولای مرده
+                undeads[j].hp -= damage;
+                if (undeads[j].hp <= 0) {
+                    map[undeads[j].y][undeads[j].x] = 'y'; // خنجر جایگزین هیولای مرده حذف شده می‌شود
+                    undeads[j] = undeads[undead_count - 1];
+                    undead_count--;
+                    snprintf(current_message, sizeof(current_message), "You killed an undead with the arrow!");
+                } else {
+                    map[new_y][new_x] = 'y'; // خنجر در کنار هیولای مرده می‌افتد
+                    snprintf(current_message, sizeof(current_message), "You hit an undead with the arrow! Its HP is now %d.", undeads[j].hp);
+                }
+                num_arrows--; // کاهش تعداد خنجرها در اینونتوری
+                return;
+            }
+        }
+           
+        if (map[new_y][new_x] == '.') {
+            
+
+                       map[new_y][new_x] = 'y'; // خنجر در خانه خالی می‌افتد
+            snprintf(current_message, sizeof(current_message), "The arrow lands on the ground.");
+            num_arrows--; // کاهش تعداد خنجرها در اینونتوری
+            return;
+            
+         
+        }
+    }
+}
+
+
+void check_throw_mode_arrow() {
+    // بررسی اینونتوری برای وجود خنجر
+    int has_arrow = 0;
+    for (int i = 0; i < inventory_count; i++) {
+        if (strcmp(inventory[i].name, "Arrow") == 0) {
+            has_arrow = 1;
+            break;
+        }
+    }
+
+    if (has_arrow) {
+        throw_mode = !throw_mode; // تغییر حالت پرتاب
+        if (throw_mode) {
+            snprintf(current_message, sizeof(current_message), "Throw mode activated. Use numpad to throw the arrow.");
+        } else {
+            snprintf(current_message, sizeof(current_message), "Throw mode deactivated.");
+        }
+    } else {
+        snprintf(current_message, sizeof(current_message), "You don't have a arrow to throw.");
     }
 }
 
@@ -1738,7 +1867,32 @@ void move_player(char input) {
 
     // پاک کردن پیام قبلی
     //clear_message(); 
+    if (tolower(input) == 'y') {
+        check_throw_mode_arrow(); // فعال/غیرفعال کردن حالت پرتاب
+        return;
+    }
 
+    if (throw_mode) {
+        int dx = 0, dy = 0;
+        switch (input) {
+            case '1': dx = -1; dy = 1; break;  // پرتاب خنجر به سمت پایین چپ
+            case '2': dy = 1; break;          // پرتاب خنجر به سمت پایین
+            case '3': dx = 1; dy = 1; break;  // پرتاب خنجر به سمت پایین راست
+            case '4': dx = -1; break;         // پرتاب خنجر به سمت چپ
+            case '6': dx = 1; break;          // پرتاب خنجر به سمت راست
+            case '7': dx = -1; dy = -1; break; // پرتاب خنجر به سمت بالا چپ
+            case '8': dy = -1; break;         // پرتاب خنجر به سمت بالا
+            case '9': dx = 1; dy = -1; break; // پرتاب خنجر به سمت بالا راست
+        }
+   
+        if (dx != 0 || dy != 0) {
+            throw_arrow(dx, dy);
+            throw_mode = 0; // غیرفعال کردن حالت پرتاب پس از پرتاب خنجر
+            return;
+        }
+   
+    }
+    
 
        if (tolower(input) == 'k') {
         check_throw_mode(); // فعال/غیرفعال کردن حالت پرتاب
@@ -1766,6 +1920,7 @@ void move_player(char input) {
    
     }
     
+   
               switch (tolower(input)) {
         case 'w': dy = -1; break; // حرکت به بالا
         case 's': dy = 1; break; // حرکت به پایین
@@ -1870,6 +2025,7 @@ void move_player(char input) {
                   else if (destination_tile == 'y'){
                     add_arrow_to_inventory();
                      snprintf(current_message, sizeof(current_message), "You picked up a arrow!");
+                     num_arrows++;
                 }
 
 
@@ -1985,6 +2141,7 @@ void move_player(char input) {
                   else if (destination_tile == 'y'){
                     add_arrow_to_inventory();
                      snprintf(current_message, sizeof(current_message), "You picked up a arrow!");
+                      num_arrows++;
                 }
 
 
@@ -2100,6 +2257,7 @@ void move_player(char input) {
                   else if (destination_tile == 'y'){
                     add_arrow_to_inventory();
                      snprintf(current_message, sizeof(current_message), "You picked up a arrow!");
+                      num_arrows++;
                 }
 
             // Check for stairs and regenerate map if needed
