@@ -1541,26 +1541,22 @@ void show_inventory() {
     clear();
     inventory_open = 0; // بستن inventory
 }
-
-
 void regenerate_map() {
     // تنظیم مقدار اولیه HP بازیکن
     player_hp = 24;
-
 
     // بازنشانی موقعیت شیاطین
     demon_count = 0;
     memset(demons, 0, sizeof(demons));
     undead_count = 0;
     memset(undeads, 0, sizeof(undeads));
-
     giant_count = 0;
     memset(giants, 0, sizeof(giants));
-
     fire_count = 0;
     memset(firemonsters, 0, sizeof(firemonsters));
     snake_count = 0;
-    memset(snakes, 0 ,sizeof(snakes));
+    memset(snakes, 0, sizeof(snakes));
+
     // بازسازی نقشه
     initialize_map();
 
@@ -1588,55 +1584,48 @@ void regenerate_map() {
     // Add windows, traps, gold, food, gold bags, black gold, super food, and magic food to rooms
     for (int i = 0; i < room_count; i++) {
         place_window_in_room(&rooms[i]);
-        add_traps_to_room(&rooms[i]); // اضافه کردن تله‌ها به اتاق‌ها
+        add_traps_to_room(&rooms[i]);
 
-        // Add gold to rooms
         if (gold_count < TOTAL_GOLD) {
             add_gold_to_room(&rooms[i]);
             gold_count++;
         }
 
-        // Add food to rooms
         if (food_count < TOTAL_FOOD) {
             add_food_to_room(&rooms[i]);
             food_count++;
         }
 
-        // Add super food to rooms
         if (super_food_count < TOTAL_SUPER_FOOD) {
             add_super_food_to_room(&rooms[i]);
             super_food_count++;
         }
-          // Add super food to rooms
+        
         if (health_spell_count < TOTAL_HEALTH_SPELLS) {
             add_health_spell_to_room(&rooms[i]);
             health_spell_count++;
         }
 
-
-        // Add magic food to rooms
         if (magic_food_count < TOTAL_MAGIC_FOOD) {
             add_magic_food_to_room(&rooms[i]);
             magic_food_count++;
         }
-          // Add magic food to rooms
+
         if (speed_spell_count < TOTAL_SPEED_SPELL) {
             add_speed_spell_to_room(&rooms[i]);
             speed_spell_count++;
         }
 
-        // Add gold bags to rooms
         if (placed_gold_bags < TOTAL_GOLD_BAGS) {
             add_gold_bag_to_room(&rooms[i]);
             placed_gold_bags++;
         }
 
-        // Add black gold to rooms
         if (placed_black_gold < TOTAL_BLACK_GOLD) {
             add_black_gold_to_room(&rooms[i]);
             placed_black_gold++;
         }
-               // افزودن کاراکتر E به صورت رندوم در یکی از اتاق‌های طبقه پنجم
+
         if (current_floor == 5 && map[rooms[i].y][rooms[i].x] != 'E') {
             int e_x = rooms[i].x + 1 + rand() % (rooms[i].width - 2);
             int e_y = rooms[i].y + 1 + rand() % (rooms[i].height - 2);
@@ -1644,23 +1633,19 @@ void regenerate_map() {
         }
     }
 
-    
-    
-
-    // اضافه کردن شیطان به اتاق‌ها
     add_demons_to_rooms(rooms, room_count);
-    add_firemonster_to_rooms(rooms,room_count);
+    add_firemonster_to_rooms(rooms, room_count);
     add_undeads_to_rooms(rooms, room_count);
-    add_giants_to_rooms(rooms,room_count);
-    add_snakes_to_rooms(rooms,room_count);
-   add_swords_to_rooms(rooms,room_count);
-    add_daggers_to_rooms(rooms,room_count);
-   add_wands_to_rooms(rooms, room_count);
-    add_arrows_to_rooms(rooms,room_count);
-    // Place special characters ">" and "<"
+    add_giants_to_rooms(rooms, room_count);
+    add_snakes_to_rooms(rooms, room_count);
+    add_swords_to_rooms(rooms, room_count);
+    add_daggers_to_rooms(rooms, room_count);
+    add_wands_to_rooms(rooms, room_count);
+    add_arrows_to_rooms(rooms, room_count);
+
     place_single_special_characters(rooms, room_count);
-place_ending_special_characters(rooms,room_count);
-    // Place hero in a random room
+    place_ending_special_characters(rooms, room_count);
+
     int hero_room = rand() % room_count;
     player_x = rooms[hero_room].x + 1 + rand() % (rooms[hero_room].width - 2);
     player_y = rooms[hero_room].y + 1 + rand() % (rooms[hero_room].height - 2);
@@ -2437,7 +2422,6 @@ void move_player(char input) {
     update_firemonster();
     update_giantss();
     update_undead();
-     check_room_clear(); // بررسی اینکه آیا همه هیولاها در اتاق کشته شده‌اند
     
     // کد قبلی برای حرکت بازیکن
 }
