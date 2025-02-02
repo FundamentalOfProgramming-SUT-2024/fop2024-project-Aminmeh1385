@@ -1246,7 +1246,7 @@ void add_traps_to_room(Room *room) {
             trap_x = room->x + 1 + rand() % (room->width - 2);
             trap_y = room->y + 1 + rand() % (room->height - 2);
         } while (trap_map[trap_y][trap_x] == 'T'); // Ensure we don't place a trap on another trap
-        if(map[trap_y][trap_x] != '>' || map[trap_y][trap_x] != '<')
+        if(map[trap_y][trap_x] != '>' && map[trap_y][trap_x] != '<')
         trap_map[trap_y][trap_x] = 'T'; // Place a trap in the trap map
     }
 }
@@ -2362,17 +2362,15 @@ void loginUser() {
     char password[PASSWORD_LENGTH];
 
     printw("Enter username: ");
-    move(LINES - 1, 15);
     echo();
     scanw("%s", username);
     noecho();
-
+    clear();
     printw("Enter password: ");
-    move(LINES - 1, 16);
     echo();
     scanw("%s", password);
     noecho();
-
+    clear();
     for (int i = 0; i < userCount; i++) {
         if (strcmp(users[i].username, username) == 0 && strcmp(users[i].password, password) == 0) {
             printw("Login successful.\n");
@@ -2383,12 +2381,14 @@ void loginUser() {
             char load_or_new;
 
             printw("Do you want to load a saved game or start a new one? (L for load, N for new): ");
+            echo();
             scanw(" %c", &load_or_new);
-
+            
             if (tolower(load_or_new) == 'l') {
                 clear();
                 load_save_list();
                 printw("Enter the name of the save file to load (e.g., save1, save2, ...): ");
+                echo();
                 scanw("%s", filename);
                 game_loaded = load_game(filename, &game_state);
 
