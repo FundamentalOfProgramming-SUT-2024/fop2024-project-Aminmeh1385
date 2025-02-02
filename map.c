@@ -377,13 +377,36 @@ void move_snake(Monster *snake) {
     int new_x = snake->x + dx;
     int new_y = snake->y + dy;
 
-    if (map[new_y][new_x] == 'O'|| map[new_y][new_x] == '.' || map[new_y][new_x] == 'f' || map[new_y][new_x] == 'j' || map[new_y][new_x] == 'm') {
-        map[snake->y][snake->x] = '.'; // پاک کردن محل قبلی شیطان
+    if (map[new_y][new_x] == ' ' || map[new_y][new_x] == '.' || map[new_y][new_x] == 'f' || map[new_y][new_x] == 'j' || map[new_y][new_x] == 'm') {
+        // حرکت مستقیم به سمت بازیکن اگر خانه جدید خالی باشد
+        map[snake->y][snake->x] = '.';
         snake->x = new_x;
         snake->y = new_y;
-        map[new_y][new_x] = 'S'; // جایگذاری شیطان در محل جدید
+        map[new_y][new_x] = 'S';
+    } else {
+        // حرکت به اطراف موانع
+        int directions[4][2] = {
+            {dx, 0}, // حرکت افقی
+            {0, dy}, // حرکت عمودی
+            {-dx, 0}, // حرکت افقی در جهت مخالف
+            {0, -dy} // حرکت عمودی در جهت مخالف
+        };
+
+        for (int i = 0; i < 4; i++) {
+            new_x = snake->x + directions[i][0];
+            new_y = snake->y + directions[i][1];
+
+            if (map[new_y][new_x] == ' ' || map[new_y][new_x] == '.' || map[new_y][new_x] == 'f' || map[new_y][new_x] == 'j' || map[new_y][new_x] == 'm') {
+                map[snake->y][snake->x] = '.';
+                snake->x = new_x;
+                snake->y = new_y;
+                map[new_y][new_x] = 'S';
+                break;
+            }
+        }
     }
 }
+
 void move_firemonster(Monster *firemonster) {
     if (!firemonster->active) return;
 
@@ -444,13 +467,11 @@ void activate_snakes() {
     for (int i = 0; i < snake_count; i++) {
         if (player_x >= rooms[snakes[i].room_index].x && player_x < rooms[snakes[i].room_index].x + rooms[snakes[i].room_index].width &&
             player_y >= rooms[snakes[i].room_index].y && player_y < rooms[snakes[i].room_index].y + rooms[snakes[i].room_index].height) {
-            snakes[i].active = 1; // فعال کردن شیطان در صورت ورود بازیکن به اتاق
-        } 
-        else {
-           // snakes[i].active = 0; // غیرفعال کردن شیطان در صورت خروج بازیکن از اتاق
+            snakes[i].active = 1; // فعال کردن مارها در صورت ورود بازیکن به اتاق
         }
     }
 }
+
 void activate_firemonter() {
     for (int i = 0; i < fire_count; i++) {
         if (player_x >= rooms[firemonsters[i].room_index].x && player_x < rooms[firemonsters[i].room_index].x + rooms[firemonsters[i].room_index].width &&
@@ -1899,7 +1920,6 @@ void display_scoreboard() {
 
 void end_game() {
     clear();
-    printw("Congratulations! You have cleared the room on floor 5!\n");
     printw("Your total EXP: %d\n", player_exp);
     printw("Your total Gold: %d\n", player_gold);
     int score = player_exp + player_gold; // محاسبه امتیاز
