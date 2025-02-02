@@ -2500,6 +2500,22 @@ void loginUser() {
                 if (player_hp <= 0) {
                     clear();
                     printw("Game Over! You ran out of HP.\n");
+                                            printw("                       ______\n");
+    printw("                    .-\"      \"-.\n");
+    printw("                   /            \\\n");
+    printw("       _          |              |          _\n");
+    printw("      ( \\         |,  .-.  .-.  ,|         / )\n");
+    printw("       > \"=._     | )(__/  \\__)( |     _.=\" <\n");
+    printw("      (_/\"=._\"=._ |/     /\\     \\| _.=\"_.=\"\\_)\n");
+    printw("             \"=._ (_     ^^     _)\")_.=\"\n");
+    printw("                 \"=\\__|IIIIII|__/=\"\n");
+    printw("                _.=\"| \\IIIIII/ |\"=._\n");
+    printw("      _     _.=\"_.=\"\\          /\"=._\"=._     _\n");
+    printw("     ( \\_.=\"_.=\"     `--------`     \"=._\"=._/ )\n");
+    printw("      > _.=\"                            \"=._ <\n");
+    printw("     (_/                                    \\_)\n");
+
+
                     regenerations = 0;
                     refresh();
                     getch();
