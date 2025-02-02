@@ -1101,23 +1101,12 @@ int create_room(Room *room) {
         }
     }
 
-    // Add a door at one of the walls
-    int door_side = rand() % 4; // Random side: 0 = top, 1 = bottom, 2 = left, 3 = right
-    if (door_side == 0) { // Top
-        room->door_x = room->x + 1 + rand() % (room->width - 2);
-        room->door_y = room->y;
-    } else if (door_side == 1) { // Bottom
-        room->door_x = room->x + 1 + rand() % (room->width - 2);
-        room->door_y = room->y + room->height - 1;
-    } else if (door_side == 2) { // Left
-        room->door_x = room->x;
-        room->door_y = room->y + 1 + rand() % (room->height - 2);
-    } else { // Right
-        room->door_x = room->x + room->width - 1;
-        room->door_y = room->y + 1 + rand() % (room->height - 2);
-    }
+    // Remove additional doors
+    room->door_x = -1;
+    room->door_y = -1;
     return 1;
 }
+
 
 
 void place_window_in_room(Room *room) {
@@ -1148,58 +1137,23 @@ int is_valid_for_corridor(int x, int y) {
     return map[y][x] == '.' || map[y][x] == '+' || map[y][x] == '#';
 }
 void connect_rooms(Room* r1, Room* r2) {
-    int x1 = r1->door_x;
-    int y1 = r1->door_y;
-    int x2 = r2->door_x;
-    int y2 = r2->door_y;
+    int x1 = r1->x + r1->width / 2;
+    int y1 = r1->y + r1->height / 2;
+    int x2 = r2->x + r2->width / 2;
+    int y2 = r2->y + r2->height / 2;
 
-    int mid_x1 = r1->x + r1->width / 2;
-    int mid_y1 = r1->y + r1->height / 2;
-    int mid_x2 = r2->x + r2->width / 2;
-    int mid_y2 = r2->y + r2->height / 2;
+    int curr_x = x1;
+    int curr_y = y1;
 
-    // Create a horizontal corridor from the center of r1 to the center of r2
-    while (x1 != mid_x1 || y1 != mid_y1) {
-        if (map[y1][x1] == '_' || map[y1][x1] == '|') {
-            map[y1][x1] = '+'; // Place a door if a wall is encountered
-        } else if (map[y1][x1] == ' ') {
-            map[y1][x1] = '#'; // Create a corridor if the tile is empty
+    while (curr_x != x2 || curr_y != y2) {
+        if (curr_x != x2) curr_x += (x2 > curr_x) ? 1 : -1;
+        if (curr_y != y2) curr_y += (y2 > curr_y) ? 1 : -1;
+
+        if (map[curr_y][curr_x] == '|' || map[curr_y][curr_x] == '_') {
+            map[curr_y][curr_x] = '+'; // Place door if a wall is encountered
+        } else if (map[curr_y][curr_x] == ' ') {
+            map[curr_y][curr_x] = '#'; // Create corridor if the tile is empty
         }
-        if (x1 != mid_x1) x1 += (mid_x1 > x1) ? 1 : -1;
-        if (y1 != mid_y1) y1 += (mid_y1 > y1) ? 1 : -1;
-    }
-
-    // Create a vertical corridor from mid_y1 to mid_y2
-    while (x1 != mid_x2 || y1 != mid_y2) {
-        if (map[y1][x1] == '_' || map[y1][x1] == '|') {
-            map[y1][x1] = '+'; // Place a door if a wall is encountered
-        } else if (map[y1][x1] == ' ') {
-            map[y1][x1] = '#'; // Create a corridor if the tile is empty
-        }
-        if (x1 != mid_x2) x1 += (mid_x2 > x1) ? 1 : -1;
-        if (y1 != mid_y2) y1 += (mid_y2 > y1) ? 1 : -1;
-    }
-
-    // Create a horizontal corridor from mid_x2 to x2
-    while (x2 != mid_x2 || y2 != mid_y2) {
-        if (map[y2][x2] == '_' || map[y2][x2] == '|') {
-            map[y2][x2] = '+'; // Place a door if a wall is encountered
-        } else if (map[y2][x2] == ' ') {
-            map[y2][x2] = '#'; // Create a corridor if the tile is empty
-        }
-        if (x2 != mid_x2) x2 += (mid_x2 > x2) ? 1 : -1;
-        if (y2 != mid_y2) y2 += (mid_y2 > y2) ? 1 : -1;
-    }
-
-    // Create a vertical corridor from x2 to y2
-    while (x2 != r2->door_x || y2 != r2->door_y) {
-        if (map[y2][x2] == '_' || map[y2][x2] == '|') {
-            map[y2][x2] = '+'; // Place a door if a wall is encountered
-        } else if (map[y2][x2] == ' ') {
-            map[y2][x2] = '#'; // Create a corridor if the tile is empty
-        }
-        if (x2 != r2->door_x) x2 += (r2->door_x > x2) ? 1 : -1;
-        if (y2 != r2->door_y) y2 += (r2->door_y > y2) ? 1 : -1;
     }
 }
 
