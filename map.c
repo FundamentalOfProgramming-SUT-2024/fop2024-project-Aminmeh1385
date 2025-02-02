@@ -37,6 +37,8 @@
 #define TOTAL_SNAKES 5
 #define TOTAL_GIANTS 4
 #define TOTAL_UNDEAD 2
+int reveal_map_mode = 0; // 0: محدودیت دید فعال است، 1: محدودیت دید غیرفعال است
+
 int player_color = COLOR_RED; // رنگ پیش‌فرض بازیکن
 int selected_music = 0; // موزیک انتخابی، 0: هیچ موزیکی انتخاب نشده
 int placed_magic_food = 0; // شمارش غذای جادویی قرار داده شده
@@ -1194,14 +1196,22 @@ int is_line_of_sight_clear(int x1, int y1, int x2, int y2) {
 void update_seen_tiles() {
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
-            int distance = abs(player_x - j) + abs(player_y - i);
-            if (distance <= 5 && is_line_of_sight_clear(player_x, player_y, j, i)) {
-                seen_map[i][j] = map[i][j]; // کاشی‌هایی که در محدوده دید هستند و مانعی ندارند، قابل دیدن می‌شوند
-            } else if (seen_map[i][j] != '.' && seen_map[i][j] != ' ') {
-                seen_map[i][j] = ' '; // کاشی‌هایی که در دید نیستند، مخفی می‌شوند
+            if (reveal_map_mode) {
+                seen_map[i][j] = map[i][j]; // اگر حالت نمایش کل نقشه فعال باشد، همه کاشی‌ها قابل دیدن می‌شوند
+            } else {
+                int distance = abs(player_x - j) + abs(player_y - i);
+                if (distance <= 5 && is_line_of_sight_clear(player_x, player_y, j, i)) {
+                    seen_map[i][j] = map[i][j]; // کاشی‌هایی که در محدوده دید هستند و مانعی ندارند، قابل دیدن می‌شوند
+                } else if (seen_map[i][j] != '.' && seen_map[i][j] != ' ') {
+                    seen_map[i][j] = ' '; // کاشی‌هایی که در دید نیستند، مخفی می‌شوند
+                }
             }
         }
     }
+}
+
+void toggle_reveal_map() {
+    reveal_map_mode = !reveal_map_mode; // تغییر حالت محدودیت دید
 }
 
 
@@ -1909,7 +1919,13 @@ void move_player(char input) {
         attack_with_mace();
         return;
     }
-    
+        if (tolower(input) == 'm') {
+        toggle_reveal_map(); // تغییر حالت محدودیت دید
+        update_seen_tiles(); // به‌روزرسانی کاشی‌های قابل دیدن
+        print_map();  // چاپ نقشه
+        return;
+    }
+
 
     // پاک کردن پیام قبلی
     //clear_message(); 
