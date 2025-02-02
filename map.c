@@ -1168,15 +1168,43 @@ int is_player_in_room() {
     return 0; // Player is not inside a room
 }
 
-// Function to update seen tiles
+int is_line_of_sight_clear(int x1, int y1, int x2, int y2) {
+    int dx = abs(x2 - x1);
+    int dy = abs(y2 - y1);
+    int sx = (x1 < x2) ? 1 : -1;
+    int sy = (y1 < y2) ? 1 : -1;
+    int err = dx - dy;
+
+    while (x1 != x2 || y1 != y2) {
+        if (map[y1][x1] == '|' || map[y1][x1] == '-' || map[y1][x1] == '#') {
+            return 0; // خط دید مسدود شده است
+        }
+        int e2 = err * 2;
+        if (e2 > -dy) {
+            err -= dy;
+            x1 += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            y1 += sy;
+        }
+    }
+    return 1; // خط دید واضح است
+}
 void update_seen_tiles() {
-    // Update all map tiles to be visible
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
-            seen_map[i][j] = map[i][j]; // Make the entire map visible
+            int distance = abs(player_x - j) + abs(player_y - i);
+            if (distance <= 5 && is_line_of_sight_clear(player_x, player_y, j, i)) {
+                seen_map[i][j] = map[i][j]; // کاشی‌هایی که در محدوده دید هستند و مانعی ندارند، قابل دیدن می‌شوند
+            } else if (seen_map[i][j] != '.' && seen_map[i][j] != ' ') {
+                seen_map[i][j] = ' '; // کاشی‌هایی که در دید نیستند، مخفی می‌شوند
+            }
         }
     }
 }
+
+
 void print_map() {
     clear(); // Clear the console (use "cls" for Windows)
 
@@ -1192,6 +1220,8 @@ void print_map() {
                 attron(COLOR_PAIR(player_color));
                 printw("%c", '@');
                 attroff(COLOR_PAIR(player_color));
+            } else if (seen_map[i][j] == ' ') {
+                printw(" ");
             } else if (map[i][j] == '&') {
                 attron(COLOR_PAIR(COLOR_YELLOW));
                 printw("%c", map[i][j]);
@@ -1205,10 +1235,8 @@ void print_map() {
                 printw("%c", map[i][j]);
                 attroff(COLOR_PAIR(COLOR_GREEN));
             } 
-             else if (seen_map[i][j] != ' ') {
+             else {
                 printw("%c", seen_map[i][j]);
-            } else {
-                printw(" ");
             }
         }
 
@@ -1230,6 +1258,7 @@ void print_map() {
 
     refresh(); // Refresh to show the message
 }
+
 
 // Initialize trap map
 void initialize_trap_map() {
@@ -2334,6 +2363,7 @@ void move_player(char input) {
     update_giantss();
     update_undead();
      check_room_clear(); // بررسی اینکه آیا همه هیولاها در اتاق کشته شده‌اند
+    
     // کد قبلی برای حرکت بازیکن
 }
 
