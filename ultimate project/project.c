@@ -37,6 +37,8 @@
 #define TOTAL_SNAKES 5
 #define TOTAL_GIANTS 4
 #define TOTAL_UNDEAD 2
+int total_games_played = 0;
+
 int reveal_map_mode = 0; // 0: محدودیت دید فعال است، 1: محدودیت دید غیرفعال است
 char current_user[USERNAME_LENGTH];
 int player_color = COLOR_RED; // رنگ پیش‌فرض بازیکن
@@ -94,7 +96,9 @@ typedef struct {
     char username[USERNAME_LENGTH];
     char password[PASSWORD_LENGTH];
     char email[EMAIL_LENGTH];
+    int games_played; // تعداد بازی‌های انجام شده
 } User;
+
 
 User users[MAX_USERS];
 int userCount = 0;
@@ -109,6 +113,22 @@ typedef struct {
     int has_giant;
     int has_undead;
 } Room;
+
+
+
+#define MAX_SCORES 100
+
+typedef struct {
+    char username[USERNAME_LENGTH];
+    int score;
+    char last_played[20]; // زمان آخرین بازی
+    int games_played; 
+    // تعداد بازی‌های انجام شده
+} Score;
+
+
+Score scores[MAX_SCORES];
+int scoreCount = 0;
 
 char hit_message[25] = "You hit a column!";
 int show_message = 0; // 1 if the message is active, 0 otherwise
@@ -133,15 +153,11 @@ char seen_map[HEIGHT][WIDTH];
 int player_x, player_y;
 Room rooms[MAX_ROOMS]; // Store rooms to check player's position
 char trap_map[HEIGHT][WIDTH]; // New global variable to store traps
-typedef struct {
-    char username[USERNAME_LENGTH];
-    int score;
-} Score;
+
 #define SCORE_FILE "scores.txt"
 #define MAX_SCORES 100
 
 Score scores[MAX_SCORES];
-int scoreCount = 0;
 
 typedef struct {
     int player_x;
@@ -763,6 +779,21 @@ void load_save_list() {
         fclose(file);
     } else {
         printw("No saved games found.\n");
+    }
+}
+void load_game_count() {
+    FILE *file = fopen("game_count.txt", "r");
+    if (file) {
+        fscanf(file, "%d", &total_games_played);
+        fclose(file);
+    }
+}
+
+void save_game_count() {
+    FILE *file = fopen("game_count.txt", "w");
+    if (file) {
+        fprintf(file, "%d", total_games_played);
+        fclose(file);
     }
 }
 
@@ -1870,10 +1901,19 @@ void check_throw_mode_arrow() {
         snprintf(current_message, sizeof(current_message), "You don't have a arrow to throw.");
     }
 }
-void save_score(const char* username, int score) {
+void get_current_time(char* buffer, size_t size) {
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    snprintf(buffer, size, "%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+}
+
+void save_score(const char* username, int score, int games_played) {
+    char current_time[20];
+    get_current_time(current_time, sizeof(current_time));
+
     FILE *file = fopen(SCORE_FILE, "a");
     if (file) {
-        fprintf(file, "%s %d\n", username, score);
+        fprintf(file, "%s %d %s %d\n", username, score, current_time, games_played);
         fclose(file);
     }
 }
@@ -1882,12 +1922,14 @@ void load_scores() {
     FILE *file = fopen(SCORE_FILE, "r");
     if (file) {
         scoreCount = 0;
-        while (fscanf(file, "%s %d", scores[scoreCount].username, &scores[scoreCount].score) != EOF) {
+        while (fscanf(file, "%s %d %s %d", scores[scoreCount].username, &scores[scoreCount].score, scores[scoreCount].last_played, &scores[scoreCount].games_played) != EOF) {
             scoreCount++;
         }
         fclose(file);
     }
 }
+
+
 int compare_scores(const void *a, const void *b) {
     Score *scoreA = (Score *)a;
     Score *scoreB = (Score *)b;
@@ -1908,7 +1950,7 @@ void display_scoreboard() {
             attron(COLOR_PAIR(12)); // استفاده از رنگ زرد برای سومین امتیاز برتر
         }
 
-        printw("%d. %s - %d\n", i + 1, scores[i].username, scores[i].score);
+        printw("%d. %s - %d (Last Played: %s, Games Played: %d)\n", i + 1, scores[i].username, scores[i].score, scores[i].last_played, scores[i].games_played);
 
         if (i < 3) {
             attroff(COLOR_PAIR(10 + i)); // خاموش کردن رنگ
@@ -1917,20 +1959,38 @@ void display_scoreboard() {
     refresh();
     getch();
 }
-
+int get_games_played(const char* username) {
+    for (int i = 0; i < userCount; i++) {
+        if (strcmp(users[i].username, username) == 0) {
+            return users[i].games_played;
+        }
+    }
+    return 0;
+}
 
 void end_game() {
     clear();
+    printw("Congratulations! You have cleared the room on floor 5!\n");
     printw("Your total EXP: %d\n", player_exp);
     printw("Your total Gold: %d\n", player_gold);
     int score = player_exp + player_gold; // محاسبه امتیاز
-    save_score(current_user, score); // ذخیره امتیاز بازیکن
+
+    // افزایش تعداد بازی‌های کاربر
+    for (int i = 0; i < userCount; i++) {
+        if (strcmp(users[i].username, current_user) == 0) {
+            users[i].games_played++;
+            break;
+        }
+    }
+
+    save_score(current_user, score, get_games_played(current_user)); // ذخیره امتیاز و تعداد بازی‌های کاربر
     refresh();
     getch();
     endwin();
-    stop_music();
     exit(0);
 }
+
+
 
 void check_room_clear() {
     if (current_floor == 5) {
@@ -2820,7 +2880,6 @@ void loadUsers() {
         printw("No users found. You may need to create a new user.\n");
     }
 }
-
 int main() {
     initscr(); // Initialize the ncurses screen
     noecho();  // Disable echoing of input characters
@@ -2833,68 +2892,75 @@ int main() {
     // Load users from file when the program starts
     loadUsers();
 
+    // Load game count
+    load_game_count();
+
     int choice;
-  do {
-    clear();
-    printw("\nMenu:\n");
-    printw("1. Create new user\n");
-    printw("2. Generate random password\n");
-    printw("3. User login\n");
-    printw("4. Guest login\n"); // گزینه ورود مهمان
-    printw("5. Reset password\n");
-    printw("6. Recover forgotten password\n");
-    printw("7. Settings\n");
-    printw("8. Stop Music\n");
-    printw("9. Display Scoreboard\n");
-    printw("10. Exit\n");
-    printw("Enter your choice: ");
-    refresh();
+    do {
+        clear(); // Clear the screen
+        printw("\nMenu:\n");
+        printw("1. Create new user\n");
+        printw("2. Generate random password\n");
+        printw("3. User login\n");
+        printw("4. Guest login\n");
+        printw("5. Reset password\n");
+        printw("6. Recover forgotten password\n");
+        printw("7. Settings\n"); 
+        printw("8. Stop Music\n");
+        printw("9. Display Scoreboard\n"); 
+        printw("10. Exit\n");
+        printw("\nTotal games played: %d\n", total_games_played); // نمایش تعداد بازی‌ها
+        printw("Enter your choice: ");
+        refresh(); // Refresh to show the menu
 
-    move(LINES - 1, 0);
-    choice = getch() - '0';
+        move(LINES - 1, 0);
+        choice = getch() - '0'; // Read the user's choice without requiring Enter
 
-    switch (choice) {
-        case 1:
-            createUser();
-            break;
-        case 2:
-            generatePasswordForUser();
-            break;
-        case 3:
-            loginUser();
-            break;
-        case 4:
-            guestLogin(); // فراخوانی تابع ورود مهمان
-            break;
-        case 5:
-            resetPassword();
-            break;
-        case 6:
-            recoverPassword();
-            break;
-        case 7:
-            settings();
-            break;
-        case 8:
-            stop_music();
-            break;
-        case 9:
-            display_scoreboard();
-            break;
-        case 10:
-            clear();
-            printw("Exiting program.\n");
-            refresh();
-            getch();
-            break;
-        default:
-            clear();
-            printw("Invalid choice.\n");
-            refresh();
-            getch();
-    }
-} while (choice != 10);
-
+        switch (choice) {
+            case 1:
+                createUser();
+                break;
+            case 2:
+                generatePasswordForUser();
+                break;
+            case 3:
+                loginUser();
+                total_games_played++;
+                save_game_count(); // ذخیره تعداد بازی‌ها پس از شروع هر بازی
+                break;
+            case 4:
+               guestLogin();
+                total_games_played++;
+                save_game_count(); // ذخیره تعداد بازی‌ها پس از شروع هر بازی به عنوان مهمان
+                break;
+            case 5:
+                resetPassword();
+                break;
+            case 6:
+                recoverPassword();
+                break;
+            case 7:
+                settings();
+                break;
+            case 8:
+                stop_music();
+                break;
+            case 9:
+                display_scoreboard(); 
+                break;
+            case 10:
+                clear();
+                printw("Exiting program.\n");
+                refresh();
+                getch();
+                break;
+            default:
+                clear();
+                printw("Invalid choice.\n");
+                refresh();
+                getch();
+        }
+    } while (choice != 10);
 
     endwin(); // End the ncurses mode
     return 0;
