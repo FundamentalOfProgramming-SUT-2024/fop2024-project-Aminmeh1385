@@ -1912,6 +1912,7 @@ void end_game() {
     refresh();
     getch();
     endwin();
+    stop_music();
     exit(0);
 }
 
@@ -2068,6 +2069,7 @@ void move_player(char input) {
                 char choice = getch();
                 if (tolower(choice) == 'y') {
                     end_game();
+                    
                 }
                 map[player_y + 1][player_x] = 'E';
 
