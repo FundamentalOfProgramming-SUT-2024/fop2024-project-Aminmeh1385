@@ -2462,6 +2462,97 @@ void play_music() {
             break; // هیچ موزیکی انتخاب نشده
     }
 }
+void guestLogin() {
+    strcpy(current_user, "Guest"); // تعیین نام کاربری به عنوان "Guest"
+
+    srand(time(NULL));
+    initialize_map();
+    initialize_trap_map();
+    int room_count = 0;
+
+    // تنظیم مقدار اولیه HP بازیکن
+    player_hp = 24;
+
+    // بازنشانی موقعیت شیاطین
+    demon_count = 0;
+    memset(demons, 0, sizeof(demons));
+    undead_count = 0;
+    memset(undeads, 0, sizeof(undeads));
+    giant_count = 0;
+    memset(giants, 0, sizeof(giants));
+    snake_count = 0;
+    memset(snakes, 0, sizeof(snakes));
+    fire_count = 0;
+    memset(firemonsters, 0, sizeof(firemonsters));
+
+    while (room_count < MAX_ROOMS) {
+        Room new_room;
+        if (create_room(&new_room)) {
+            add_columns_to_room(&new_room);
+            if (room_count > 0)
+                connect_rooms(&rooms[room_count - 1], &new_room);
+            rooms[room_count++] = new_room;
+        }
+    }
+
+    for (int i = 0; i < room_count; i++) {
+        place_window_in_room(&rooms[i]);
+        add_traps_to_room(&rooms[i]);
+    }
+
+    place_single_special_characters(rooms, room_count);
+
+    int hero_room = rand() % room_count;
+    player_x = rooms[hero_room].x + 1 + rand() % (rooms[hero_room].width - 2);
+    player_y = rooms[hero_room].y + 1 + rand() % (rooms[hero_room].height - 2);
+    map[player_y][player_x] = '@';
+
+    // اضافه کردن گرز به موجودی بازیکن
+    add_mace_to_inventory();
+
+    update_seen_tiles();
+    play_music();
+
+    char input;
+    while (1) {
+        print_map();
+        printw("Use W/A/S/D to move horizontally and vertically\n");
+        printw("Use Q/E/Z/C to move diagonally\nPress G to quit.\n");
+        printw("Press H to attack with mace.\n");
+        refresh();
+        input = getch();
+        if (tolower(input) == 'g') {
+            stop_music();
+            break;
+        }
+        move_player(input);
+        if (player_hp <= 0) {
+            clear();
+            printw("Game Over! You ran out of HP.\n");
+            printw("                       ______\n");
+            printw("                    .-\"      \"-.\n");
+            printw("                   /            \\\n");
+            printw("       _          |              |          _\n");
+            printw("      ( \\         |,  .-.  .-.  ,|         / )\n");
+            printw("       > \"=._     | )(__/  \\__)( |     _.=\" <\n");
+            printw("      (_/\"=._\"=._ |/     /\\     \\| _.=\"_.=\"\\_)\n");
+            printw("             \"=._ (_     ^^     _)\")_.=\"\n");
+            printw("                 \"=\\__|IIIIII|__/=\"\n");
+            printw("                _.=\"| \\IIIIII/ |\"=._\n");
+            printw("      _     _.=\"_.=\"\\          /\"=._\"=._     _\n");
+            printw("     ( \\_.=\"_.=\"     `--------`     \"=._\"=._/ )\n");
+            printw("      > _.=\"                            \"=._ <\n");
+            printw("     (_/                                    \\_)\n");
+
+            regenerations = 0;
+            refresh();
+            getch();
+            stop_music();
+            break;
+        }
+    }
+}
+
 void loginUser() {
     char username[USERNAME_LENGTH];
     char password[PASSWORD_LENGTH];
@@ -2743,62 +2834,67 @@ int main() {
     loadUsers();
 
     int choice;
-    do {
-        clear(); // Clear the screen
-        printw("\nMenu:\n");
-        printw("1. Create new user\n");
-        printw("2. Generate random password\n");
-        printw("3. User login\n");
-        printw("4. Reset password\n");
-        printw("5. Recover forgotten password\n");
-        printw("6. Settings\n"); 
-        printw("7. Stop Music\n");
-        printw("8. Display Scoreboard\n"); // افزودن گزینه نمایش جدول امتیازات
-        printw("9. Exit\n");
-        printw("Enter your choice: ");
-        refresh(); // Refresh to show the menu
+  do {
+    clear();
+    printw("\nMenu:\n");
+    printw("1. Create new user\n");
+    printw("2. Generate random password\n");
+    printw("3. User login\n");
+    printw("4. Guest login\n"); // گزینه ورود مهمان
+    printw("5. Reset password\n");
+    printw("6. Recover forgotten password\n");
+    printw("7. Settings\n");
+    printw("8. Stop Music\n");
+    printw("9. Display Scoreboard\n");
+    printw("10. Exit\n");
+    printw("Enter your choice: ");
+    refresh();
 
-        move(LINES - 1, 0);
-        choice = getch() - '0'; // Read the user's choice without requiring Enter
+    move(LINES - 1, 0);
+    choice = getch() - '0';
 
-        switch (choice) {
-            case 1:
-                createUser();
-                break;
-            case 2:
-                generatePasswordForUser();
-                break;
-            case 3:
-                loginUser();
-                break;
-            case 4:
-                resetPassword();
-                break;
-            case 5:
-                recoverPassword();
-                break;
-            case 6:
-                settings(); 
-                break;
-            case 7:
-                stop_music(); 
-                break;
-            case 8:
-                display_scoreboard(); // فراخوانی نمایش جدول امتیازات
-                break;
-            case 9:
-                clear();
-                printw("Exiting program.\n");
-                refresh();
-                getch();
-                break;
-            default:
-                clear();
-                printw("Invalid choice.\n");
-                refresh();
-                getch();
-        }
-    } while (choice != 9);
+    switch (choice) {
+        case 1:
+            createUser();
+            break;
+        case 2:
+            generatePasswordForUser();
+            break;
+        case 3:
+            loginUser();
+            break;
+        case 4:
+            guestLogin(); // فراخوانی تابع ورود مهمان
+            break;
+        case 5:
+            resetPassword();
+            break;
+        case 6:
+            recoverPassword();
+            break;
+        case 7:
+            settings();
+            break;
+        case 8:
+            stop_music();
+            break;
+        case 9:
+            display_scoreboard();
+            break;
+        case 10:
+            clear();
+            printw("Exiting program.\n");
+            refresh();
+            getch();
+            break;
+        default:
+            clear();
+            printw("Invalid choice.\n");
+            refresh();
+            getch();
+    }
+} while (choice != 10);
+
 
     endwin(); // End the ncurses mode
     return 0;
