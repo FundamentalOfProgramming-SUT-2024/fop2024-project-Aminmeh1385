@@ -775,10 +775,14 @@ void init_colors() {
         init_pair(COLOR_BLUE, COLOR_BLUE, COLOR_BLACK);
         init_pair(COLOR_MAGENTA, COLOR_MAGENTA, COLOR_BLACK);
         init_pair(COLOR_BROWN, COLOR_BROWN, COLOR_BLACK);
+        init_pair(10, COLOR_CYAN, COLOR_BLACK); // جفت رنگ برای اولین امتیاز برتر
+        init_pair(11, COLOR_WHITE, COLOR_BLACK); // جفت رنگ برای دومین امتیاز برتر
+        init_pair(12, COLOR_YELLOW, COLOR_BLACK); // جفت رنگ برای سومین امتیاز برتر
 
         // ... سایر رنگ‌ها
     }
 }
+
 void stop_music() {
     system("pkill mpg123"); // متوقف کردن موزیک
 }
@@ -1896,7 +1900,19 @@ void display_scoreboard() {
 
     printw("Scoreboard:\n");
     for (int i = 0; i < scoreCount; i++) {
+        if (i == 0) {
+            attron(COLOR_PAIR(10)); // استفاده از رنگ سایان برای اولین امتیاز برتر
+        } else if (i == 1) {
+            attron(COLOR_PAIR(11)); // استفاده از رنگ سفید برای دومین امتیاز برتر
+        } else if (i == 2) {
+            attron(COLOR_PAIR(12)); // استفاده از رنگ زرد برای سومین امتیاز برتر
+        }
+
         printw("%d. %s - %d\n", i + 1, scores[i].username, scores[i].score);
+
+        if (i < 3) {
+            attroff(COLOR_PAIR(10 + i)); // خاموش کردن رنگ
+        }
     }
     refresh();
     getch();
@@ -1912,6 +1928,7 @@ void end_game() {
     refresh();
     getch();
     endwin();
+    stop_music();
     exit(0);
 }
 
@@ -2068,6 +2085,7 @@ void move_player(char input) {
                 char choice = getch();
                 if (tolower(choice) == 'y') {
                     end_game();
+                    
                 }
                 map[player_y + 1][player_x] = 'E';
 
@@ -2725,63 +2743,62 @@ int main() {
     loadUsers();
 
     int choice;
-  do {
-    clear();
-    printw("\nMenu:\n");
-    printw("1. Create new user\n");
-    printw("2. Generate random password\n");
-    printw("3. User login\n");
-    printw("4. Reset password\n");
-    printw("5. Recover forgotten password\n");
-    printw("6. Settings\n");
-    printw("7. Stop Music\n");
-    printw("8. Display Scoreboard\n"); // افزودن گزینه نمایش جدول امتیازات
-    printw("9. Exit\n");
-    printw("Enter your choice: ");
-    refresh();
+    do {
+        clear(); // Clear the screen
+        printw("\nMenu:\n");
+        printw("1. Create new user\n");
+        printw("2. Generate random password\n");
+        printw("3. User login\n");
+        printw("4. Reset password\n");
+        printw("5. Recover forgotten password\n");
+        printw("6. Settings\n"); 
+        printw("7. Stop Music\n");
+        printw("8. Display Scoreboard\n"); // افزودن گزینه نمایش جدول امتیازات
+        printw("9. Exit\n");
+        printw("Enter your choice: ");
+        refresh(); // Refresh to show the menu
 
-    move(LINES - 1, 0);
-    choice = getch() - '0';
+        move(LINES - 1, 0);
+        choice = getch() - '0'; // Read the user's choice without requiring Enter
 
-    switch (choice) {
-        case 1:
-            createUser();
-            break;
-        case 2:
-            generatePasswordForUser();
-            break;
-        case 3:
-            loginUser();
-            break;
-        case 4:
-            resetPassword();
-            break;
-        case 5:
-            recoverPassword();
-            break;
-        case 6:
-            settings();
-            break;
-        case 7:
-            stop_music();
-            break;
-        case 8:
-            display_scoreboard(); // فراخوانی نمایش جدول امتیازات
-            break;
-        case 9:
-            clear();
-            printw("Exiting program.\n");
-            refresh();
-            getch();
-            break;
-        default:
-            clear();
-            printw("Invalid choice.\n");
-            refresh();
-            getch();
-    }
-} while (choice != 9);
-
+        switch (choice) {
+            case 1:
+                createUser();
+                break;
+            case 2:
+                generatePasswordForUser();
+                break;
+            case 3:
+                loginUser();
+                break;
+            case 4:
+                resetPassword();
+                break;
+            case 5:
+                recoverPassword();
+                break;
+            case 6:
+                settings(); 
+                break;
+            case 7:
+                stop_music(); 
+                break;
+            case 8:
+                display_scoreboard(); // فراخوانی نمایش جدول امتیازات
+                break;
+            case 9:
+                clear();
+                printw("Exiting program.\n");
+                refresh();
+                getch();
+                break;
+            default:
+                clear();
+                printw("Invalid choice.\n");
+                refresh();
+                getch();
+        }
+    } while (choice != 9);
 
     endwin(); // End the ncurses mode
     return 0;
